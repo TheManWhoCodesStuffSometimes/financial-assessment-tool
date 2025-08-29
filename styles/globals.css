@@ -2,26 +2,156 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #f3e8ff 100%);
+  min-height: 100vh;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes slideInLeft {
+  from { 
+    opacity: 0; 
+    transform: translateX(-30px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes slideInRight {
+  from { 
+    opacity: 0; 
+    transform: translateX(30px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes bounceIn {
+  0% { 
+    opacity: 0; 
+    transform: scale(0.3); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.05); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+}
+
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px); 
+  }
+  50% { 
+    transform: translateY(-10px); 
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.5; 
+  }
+}
+
+@keyframes shimmer {
+  0% { 
+    background-position: -1000px 0; 
+  }
+  100% { 
+    background-position: 1000px 0; 
+  }
+}
+
+/* Utility classes */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.6s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.6s ease-out forwards;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
   background: #f1f5f9;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: linear-gradient(135deg, #5a6fd8 0%, #6b4190 100%);
 }
 
-/* Form elements styling */
+/* Form styling improvements */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -32,112 +162,182 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Focus styles for better accessibility */
+/* Focus states with better accessibility */
 .focus\:ring-blue-500:focus {
   --tw-ring-color: rgb(59 130 246 / 0.5);
-}
-
-/* Custom calendar cell hover effects */
-.calendar-cell {
-  @apply transition-colors duration-200 ease-in-out;
-}
-
-.calendar-cell:hover {
-  @apply bg-blue-50;
-}
-
-/* Event badges in calendar */
-.event-badge {
-  @apply px-2 py-1 text-xs font-medium rounded-full inline-block max-w-full truncate;
-}
-
-.event-badge.confirmed {
-  @apply bg-green-100 text-green-800;
-}
-
-.event-badge.high {
-  @apply bg-blue-100 text-blue-800;
-}
-
-.event-badge.medium {
-  @apply bg-yellow-100 text-yellow-800;
-}
-
-.event-badge.low {
-  @apply bg-red-100 text-red-800;
-}
-
-/* Animation for modal */
-.modal-backdrop {
-  @apply transition-opacity duration-300 ease-in-out;
-}
-
-.modal-panel {
-  @apply transition-all duration-300 ease-in-out transform;
-}
-
-/* Stats card animations */
-.stats-card {
-  @apply transition-all duration-200 ease-in-out;
-}
-
-.stats-card:hover {
-  @apply shadow-lg transform -translate-y-1;
+  box-shadow: 0 0 0 3px var(--tw-ring-color);
 }
 
 /* Button hover effects */
-.btn-primary {
-  @apply bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-200 ease-in-out;
+.btn-hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-primary:hover {
-  @apply bg-blue-700;
+.btn-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
 
-.btn-secondary {
-  @apply bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md font-medium transition-colors duration-200 ease-in-out;
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-secondary:hover {
-  @apply bg-gray-50;
+.card-hover:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading states */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
 /* Financial amount styling */
 .amount-positive {
-  @apply text-green-600 font-medium;
+  color: #10b981;
+  font-weight: 600;
 }
 
 .amount-negative {
-  @apply text-red-600 font-medium;
+  color: #ef4444;
+  font-weight: 600;
 }
 
 .amount-neutral {
-  @apply text-gray-600 font-medium;
+  color: #6b7280;
+  font-weight: 500;
 }
 
-/* Loading states */
-.loading-spinner {
-  @apply animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600;
+/* Status indicators */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
 }
 
-/* Responsive grid adjustments */
+.status-confirmed { background-color: #10b981; }
+.status-high { background-color: #3b82f6; }
+.status-medium { background-color: #f59e0b; }
+.status-low { background-color: #ef4444; }
+
+/* Responsive design improvements */
 @media (max-width: 640px) {
-  .calendar-grid {
-    font-size: 0.75rem;
+  .responsive-text-4xl {
+    font-size: 2rem;
   }
   
-  .stats-grid {
-    grid-template-columns: 1fr;
+  .responsive-text-6xl {
+    font-size: 3rem;
+  }
+  
+  .mobile-card-padding {
+    padding: 1rem;
   }
 }
 
 /* Print styles */
 @media print {
   .no-print {
-    display: none;
+    display: none !important;
   }
   
-  .calendar-cell {
-    break-inside: avoid;
+  body {
+    background: white !important;
   }
+  
+  .print-break {
+    page-break-before: always;
+  }
+}
+
+/* Dark mode support (for future implementation) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+  }
+}
+
+/* Custom checkbox and radio styles */
+.custom-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.custom-checkbox:checked {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.custom-checkbox:checked::before {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Tooltip styles */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: 200px;
+  background-color: #1f2937;
+  color: white;
+  text-align: center;
+  border-radius: 8px;
+  padding: 8px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 14px;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Success/Error message styles */
+.message-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.message-error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
