@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw } from 'lucide-react';
 
 const StatsCard = ({ title, value, change, positive, icon: Icon, gradient }) => (
   <div className={`relative overflow-hidden rounded-2xl ${gradient} p-6 text-white shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300`}>
@@ -58,9 +58,23 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
 
   const frequencies = [
     { value: 'weekly', label: 'Weekly' },
+    { value: 'bi-weekly', label: 'Bi-weekly' },
     { value: 'monthly', label: 'Monthly' },
     { value: 'quarterly', label: 'Quarterly' },
     { value: 'yearly', label: 'Yearly' }
+  ];
+
+  const categories = [
+    { value: 'business', label: '🏢 Business', icon: '🏢' },
+    { value: 'personal', label: '👤 Personal', icon: '👤' },
+    { value: 'investment', label: '📈 Investment', icon: '📈' },
+    { value: 'utilities', label: '⚡ Utilities', icon: '⚡' },
+    { value: 'marketing', label: '📢 Marketing', icon: '📢' },
+    { value: 'equipment', label: '🔧 Equipment', icon: '🔧' },
+    { value: 'rent', label: '🏠 Rent/Mortgage', icon: '🏠' },
+    { value: 'food', label: '🍔 Food & Dining', icon: '🍔' },
+    { value: 'transport', label: '🚗 Transportation', icon: '🚗' },
+    { value: 'healthcare', label: '🏥 Healthcare', icon: '🏥' }
   ];
 
   return (
@@ -73,20 +87,20 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
         <p className="text-blue-100 text-sm mt-1">Create one-time or recurring financial events</p>
       </div>
       
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <div className="p-6 space-y-6">
         {/* Type and Category Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
               <DollarSign className="w-4 h-4 mr-1" />
-              Type
+              Transaction Type
             </label>
             <select
               value={transaction.type}
               onChange={(e) => setTransaction(prev => ({ ...prev, type: e.target.value }))}
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white"
             >
-              <option value="revenue">💰 Revenue</option>
+              <option value="revenue">💰 Revenue/Income</option>
               <option value="expense">💸 Expense</option>
             </select>
           </div>
@@ -98,12 +112,9 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
               onChange={(e) => setTransaction(prev => ({ ...prev, category: e.target.value }))}
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white"
             >
-              <option value="business">🏢 Business</option>
-              <option value="personal">👤 Personal</option>
-              <option value="investment">📈 Investment</option>
-              <option value="utilities">⚡ Utilities</option>
-              <option value="marketing">📢 Marketing</option>
-              <option value="equipment">🔧 Equipment</option>
+              {categories.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -111,10 +122,11 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
         {/* Amount and Description */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Amount</label>
+            <label className="text-sm font-semibold text-gray-700">Amount ($)</label>
             <input
               type="number"
               step="0.01"
+              min="0"
               value={transaction.amount}
               onChange={(e) => setTransaction(prev => ({ ...prev, amount: e.target.value }))}
               placeholder="0.00"
@@ -129,7 +141,7 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
               type="text"
               value={transaction.description}
               onChange={(e) => setTransaction(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="What's this for?"
+              placeholder="What's this transaction for?"
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white"
               required
             />
@@ -138,7 +150,7 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
 
         {/* Recurring Toggle */}
         <div className="space-y-4">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
             <input
               type="checkbox"
               id="isRecurring"
@@ -146,16 +158,20 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
               onChange={(e) => setTransaction(prev => ({ ...prev, isRecurring: e.target.checked }))}
               className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
-            <label htmlFor="isRecurring" className="text-sm font-semibold text-gray-700 flex items-center">
-              <Repeat className="w-4 h-4 mr-1" />
-              This is a recurring transaction
+            <label htmlFor="isRecurring" className="text-sm font-semibold text-gray-700 flex items-center cursor-pointer">
+              <Repeat className="w-4 h-4 mr-2" />
+              Make this a recurring transaction
+              <span className="ml-2 text-xs text-gray-500">(repeats automatically)</span>
             </label>
           </div>
 
           {transaction.isRecurring && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-blue-700">Frequency</label>
+                <label className="text-sm font-semibold text-blue-700 flex items-center">
+                  <Repeat className="w-4 h-4 mr-1" />
+                  Repeat Frequency
+                </label>
                 <select
                   value={transaction.frequency}
                   onChange={(e) => setTransaction(prev => ({ ...prev, frequency: e.target.value }))}
@@ -168,13 +184,18 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-blue-700">End Date (Optional)</label>
+                <label className="text-sm font-semibold text-blue-700 flex items-center">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  End Date (Optional)
+                </label>
                 <input
                   type="date"
                   value={transaction.endDate}
                   onChange={(e) => setTransaction(prev => ({ ...prev, endDate: e.target.value }))}
                   className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-0 transition-colors bg-white"
+                  min={transaction.scheduledDate}
                 />
+                <p className="text-xs text-blue-600">Leave blank for indefinite recurrence</p>
               </div>
             </div>
           )}
@@ -184,7 +205,7 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
         <div className="space-y-2">
           <label className="text-sm font-semibold text-gray-700 flex items-center">
             <Calendar className="w-4 h-4 mr-1" />
-            {transaction.isRecurring ? 'Start Date' : 'Scheduled Date'}
+            {transaction.isRecurring ? 'First Occurrence Date' : 'Transaction Date'}
           </label>
           <input
             type="date"
@@ -193,6 +214,9 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white"
             required
           />
+          <p className="text-xs text-gray-500">
+            {transaction.isRecurring ? 'When should this recurring transaction start?' : 'When did/will this transaction occur?'}
+          </p>
         </div>
 
         {/* Preview */}
@@ -206,39 +230,43 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
               <p className="font-semibold text-gray-900">
                 {transaction.description || 'Untitled Transaction'}
               </p>
-              <p className="text-sm text-gray-600 flex items-center mt-1">
+              <div className="flex items-center space-x-2 mt-1">
                 {transaction.isRecurring ? (
-                  <>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     <Repeat className="w-3 h-3 mr-1" />
                     Recurring {transaction.frequency}
-                  </>
+                  </span>
                 ) : (
-                  <>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                     <Clock className="w-3 h-3 mr-1" />
                     One-time
-                  </>
+                  </span>
                 )}
-              </p>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  {categories.find(c => c.value === transaction.category)?.icon || '📄'} {transaction.category}
+                </span>
+              </div>
             </div>
             <div className="text-right">
               <div className={`text-lg font-bold ${transaction.type === 'revenue' ? 'text-green-600' : 'text-red-600'}`}>
                 {transaction.type === 'expense' ? '-' : '+'}${transaction.amount || '0.00'}
               </div>
               <div className="text-sm text-gray-500">
-                {new Date(transaction.scheduledDate).toLocaleDateString()}
+                {new Date(transaction.scheduledDate || new Date()).toLocaleDateString()}
               </div>
             </div>
           </div>
         </div>
 
         <button
-          type="submit"
-          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center"
+          onClick={handleSubmit}
+          disabled={!transaction.amount || !transaction.description}
+          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
           <Plus className="w-5 h-5 mr-2" />
-          Add Transaction
+          {transaction.isRecurring ? 'Create Recurring Transaction' : 'Add Transaction'}
         </button>
-      </form>
+      </div>
     </div>
   );
 };
@@ -264,6 +292,9 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
       if (sortBy === 'amount') {
         return Math.abs(b.amount) - Math.abs(a.amount);
       }
+      if (sortBy === 'description') {
+        return a.description.localeCompare(b.description);
+      }
       return 0;
     });
 
@@ -273,11 +304,33 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
       .reduce((sum, t) => sum + t.amount, 0);
   };
 
+  const getRecurringTotal = () => {
+    return transactions
+      .filter(t => t.isRecurring)
+      .reduce((sum, t) => sum + (t.type === 'revenue' ? t.amount : -t.amount), 0);
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  const getCategoryIcon = (category) => {
+    const icons = {
+      business: '🏢',
+      personal: '👤',
+      investment: '📈',
+      utilities: '⚡',
+      marketing: '📢',
+      equipment: '🔧',
+      rent: '🏠',
+      food: '🍔',
+      transport: '🚗',
+      healthcare: '🏥'
+    };
+    return icons[category] || '📄';
   };
 
   return (
@@ -291,6 +344,9 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
             </h3>
             <p className="text-green-100 text-sm mt-1">
               {transactions.length} transactions • Net: {formatCurrency(getTotalByType('revenue') - getTotalByType('expense'))}
+              {getRecurringTotal() !== 0 && (
+                <span className="ml-2">• Monthly Recurring: {formatCurrency(getRecurringTotal())}</span>
+              )}
             </p>
           </div>
           <button
@@ -302,7 +358,7 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
         </div>
 
         {showFilters && (
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -322,14 +378,19 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
             >
               <option value="date" className="text-gray-900">Sort by Date</option>
               <option value="amount" className="text-gray-900">Sort by Amount</option>
+              <option value="description" className="text-gray-900">Sort by Name</option>
             </select>
+
+            <div className="text-xs text-white/80 flex items-center">
+              Showing {filteredTransactions.length} of {transactions.length}
+            </div>
           </div>
         )}
       </div>
 
       <div className="p-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-green-50 border border-green-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -365,6 +426,19 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
               <Target className="w-8 h-8 text-blue-600" />
             </div>
           </div>
+
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-700">Recurring</p>
+                <p className={`text-xl font-bold ${getRecurringTotal() >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                  {formatCurrency(getRecurringTotal())}
+                </p>
+                <p className="text-xs text-purple-600">per month</p>
+              </div>
+              <Repeat className="w-8 h-8 text-purple-600" />
+            </div>
+          </div>
         </div>
 
         {/* Transaction List */}
@@ -373,14 +447,18 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
             <div className="text-center py-12">
               <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">No transactions found</p>
-              <p className="text-gray-400 text-sm">Add your first transaction to get started</p>
+              <p className="text-gray-400 text-sm">
+                {transactions.length === 0 
+                  ? "Add your first transaction to get started" 
+                  : "Try adjusting your filters"}
+              </p>
             </div>
           ) : (
             filteredTransactions.map((transaction) => (
-              <div key={transaction.id} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors border border-gray-200">
+              <div key={transaction.id} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors border border-gray-200 hover:border-gray-300">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
+                    <div className="flex items-center space-x-2 mb-2">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         transaction.type === 'revenue' 
                           ? 'bg-green-100 text-green-800' 
@@ -397,7 +475,7 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
                       )}
                       
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {transaction.category}
+                        {getCategoryIcon(transaction.category)} {transaction.category}
                       </span>
                     </div>
                     
@@ -406,23 +484,34 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
                       <Calendar className="w-4 h-4 mr-1" />
                       {new Date(transaction.scheduledDate).toLocaleDateString()}
                       {transaction.isRecurring && transaction.endDate && (
-                        <span className="ml-2">
-                          → {new Date(transaction.endDate).toLocaleDateString()}
+                        <span className="ml-2 text-gray-500">
+                          ends {new Date(transaction.endDate).toLocaleDateString()}
                         </span>
+                      )}
+                      {transaction.isRecurring && !transaction.endDate && (
+                        <span className="ml-2 text-blue-600 text-xs">ongoing</span>
                       )}
                     </p>
                   </div>
                   
-                  <div className="text-right">
-                    <div className={`text-xl font-bold ${transaction.type === 'revenue' ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.type === 'expense' ? '-' : '+'}
-                      {formatCurrency(Math.abs(transaction.amount))}
+                  <div className="text-right flex items-center space-x-3">
+                    <div>
+                      <div className={`text-xl font-bold ${transaction.type === 'revenue' ? 'text-green-600' : 'text-red-600'}`}>
+                        {transaction.type === 'expense' ? '-' : '+'}
+                        {formatCurrency(Math.abs(transaction.amount))}
+                      </div>
+                      {transaction.isRecurring && (
+                        <div className="text-xs text-gray-500">
+                          per {transaction.frequency.replace('bi-', '').replace('ly', '')}
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => onDeleteTransaction(transaction.id)}
-                      className="text-xs text-red-500 hover:text-red-700 mt-1"
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete transaction"
                     >
-                      Delete
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -473,156 +562,84 @@ const FinanceInput = ({ title, data, onChange, icon: Icon, gradient }) => (
 
 export default function EnhancedDashboard() {
   const [personalFinances, setPersonalFinances] = useState({
-    monthlyIncome: '',
-    monthlyExpenses: '',
-    savings: ''
+    monthlyIncome: 0,
+    monthlyExpenses: 0,
+    savings: 0
   });
 
   const [businessFinances, setBusinessFinances] = useState({
-    monthlyRevenue: '',
-    monthlyExpenses: '',
-    recurringRevenue: ''
+    monthlyRevenue: 0,
+    monthlyExpenses: 0,
+    recurringRevenue: 0
   });
 
-  const [transactions, setTransactions] = useState([
-    // Sample data
-    {
-      id: 1,
-      type: 'revenue',
-      amount: 5000,
-      description: 'Client Payment - ABC Corp',
-      category: 'business',
-      isRecurring: true,
-      frequency: 'monthly',
-      scheduledDate: '2025-09-01',
-      endDate: '',
-      createdAt: new Date()
-    },
-    {
-      id: 2,
-      type: 'expense',
-      amount: 800,
-      description: 'Office Rent',
-      category: 'business',
-      isRecurring: true,
-      frequency: 'monthly',
-      scheduledDate: '2025-09-01',
-      endDate: '',
-      createdAt: new Date()
-    }
-  ]);
-
+  const [transactions, setTransactions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [mounted, setMounted] = useState(false);
+
+  // Fetch financial data from n8n webhook
+  const fetchFinancialData = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('https://thayneautomations.app.n8n.cloud/webhook/retrieve-ironforge-finances', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // The webhook returns an array with one object, so we get the first item
+      const data = Array.isArray(result) ? result[0] : result;
+      
+      if (data.success && data.data) {
+        setTransactions(data.data.transactions || []);
+        setPersonalFinances(data.data.personalFinances || {
+          monthlyIncome: 0,
+          monthlyExpenses: 0,
+          savings: 0
+        });
+        setBusinessFinances(data.data.businessFinances || {
+          monthlyRevenue: 0,
+          monthlyExpenses: 0,
+          recurringRevenue: 0
+        });
+        setLastUpdated(new Date());
+      } else {
+        throw new Error('Invalid data format received from server');
+      }
+    } catch (err) {
+      setError(`Failed to load financial data: ${err.message}`);
+      console.error('Error fetching financial data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchFinancialData();
+  };
 
   useEffect(() => {
     setMounted(true);
+    fetchFinancialData();
   }, []);
 
-  const stats = {
-    currentCash: transactions.reduce((sum, t) => sum + (t.type === 'revenue' ? t.amount : -t.amount), 15420),
-    monthlyBurn: transactions.filter(t => t.type === 'expense' && t.isRecurring).reduce((sum, t) => sum + t.amount, 0),
-    monthsToGoal: 8,
-    projectedRevenue: transactions.filter(t => t.type === 'revenue').reduce((sum, t) => sum + t.amount, 0)
-  };
-
-  const handlePersonalChange = (field, value) => {
-    setPersonalFinances(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleBusinessChange = (field, value) => {
-    setBusinessFinances(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddTransaction = (transactionData) => {
-    setTransactions(prev => [transactionData, ...prev]);
-  };
-
-  const handleDeleteTransaction = (id) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-  };
-
-  if (!mounted) return null;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Financial Command Center
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Track your journey to financial freedom with style and precision
-          </p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Current Cash Flow"
-            value={`$${stats.currentCash.toLocaleString()}`}
-            change="+12%"
-            positive={true}
-            icon={DollarSign}
-            gradient="bg-gradient-to-br from-green-500 to-emerald-600"
-          />
-          <StatsCard
-            title="Monthly Burn Rate"
-            value={`$${stats.monthlyBurn.toLocaleString()}`}
-            change="+5%"
-            positive={false}
-            icon={TrendingDown}
-            gradient="bg-gradient-to-br from-red-500 to-pink-600"
-          />
-          <StatsCard
-            title="Months to Goal"
-            value={stats.monthsToGoal}
-            change="March 2026"
-            positive={true}
-            icon={Target}
-            gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
-          />
-          <StatsCard
-            title="Projected Revenue"
-            value={`$${stats.projectedRevenue.toLocaleString()}`}
-            change="Next 30 days"
-            positive={true}
-            icon={Calendar}
-            gradient="bg-gradient-to-br from-purple-500 to-indigo-600"
-          />
-        </div>
-
-        {/* Transaction Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <EnhancedTransactionForm onSubmit={handleAddTransaction} />
-          </div>
-          
-          <FinanceInput
-            title="Quick Stats"
-            data={personalFinances}
-            onChange={handlePersonalChange}
-            icon={DollarSign}
-            gradient="bg-gradient-to-r from-green-600 to-teal-600"
-          />
-        </div>
-
-        {/* Transaction History */}
-        <TransactionList 
-          transactions={transactions} 
-          onDeleteTransaction={handleDeleteTransaction}
-        />
-
-        {/* Bottom CTA */}
-        <div className="text-center py-8">
-          <div className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 cursor-pointer">
-            <Calendar className="w-4 h-4" />
-            <span>View Calendar</span>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-}
+  // Calculate dynamic stats based on actual transactions
+  const calculateStats = () => {
+    const revenue = transactions
+      .filter(t => t.type === 'revenue')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const expenses = transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum +
