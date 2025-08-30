@@ -1,53 +1,200 @@
-import { useState, useMemo } from 'react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Finance Calendar - components/FinanceCalendar.jsx</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 25px;
+            border-radius: 12px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .file-header {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px 12px 0 0;
+            margin-bottom: -5px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .file-icon {
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Enhanced Financial Forecasting Calendar</h1>
+        <p class="subtitle">Complete replacement for components/FinanceCalendar.jsx with predictive balance tracking</p>
+        
+        <div class="file-header">
+            <div class="file-icon">📄</div>
+            components/FinanceCalendar.jsx
+        </div>
+        <pre><code>import { useState, useMemo, useEffect } from 'react';
+import { Calendar, DollarSign, TrendingUp, TrendingDown, AlertCircle, Target, Repeat, Clock, ChevronRight, Activity, Wallet, Building } from 'lucide-react';
 import EventModal from './EventModal';
+import { useFinanceContext } from '../context/FinanceContext';
 
 export default function FinanceCalendar({ viewMode, eventFilters }) {
+  const { transactions, accountBalances } = useFinanceContext();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [events, setEvents] = useState([
-    // Mock events for demonstration
-    {
-      id: 1,
-      title: "Client Payment - ABC Corp",
-      amount: 5000,
-      type: "revenue",
-      likelihood: "confirmed",
-      date: new Date(2025, 7, 30), // August 30, 2025
-      description: "Monthly retainer payment"
-    },
-    {
-      id: 2,
-      title: "New Client Prospect - XYZ Ltd",
-      amount: 1500,
-      type: "revenue",
-      likelihood: "medium",
-      date: new Date(2025, 8, 15), // September 15, 2025
-      description: "Potential new automation project"
-    },
-    {
-      id: 3,
-      title: "Office Rent",
-      amount: -800,
-      type: "expense",
-      likelihood: "confirmed",
-      date: new Date(2025, 8, 1), // September 1, 2025
-      description: "Monthly office space rental"
-    },
-    {
-      id: 4,
-      title: "Large Enterprise Deal",
-      amount: 15000,
-      type: "revenue",
-      likelihood: "low",
-      date: new Date(2025, 9, 10), // October 10, 2025
-      description: "Multi-month automation overhaul"
-    }
-  ]);
+  const [events, setEvents] = useState([]);
+  const [hoveredDate, setHoveredDate] = useState(null);
+
+  // Convert transactions to calendar events
+  useEffect(() => {
+    const convertedEvents = transactions.map(transaction => ({
+      id: transaction.id,
+      title: transaction.description,
+      amount: transaction.type === 'expense' ? -Math.abs(transaction.amount) : Math.abs(transaction.amount),
+      type: transaction.type,
+      likelihood: 'confirmed',
+      date: new Date(transaction.scheduledDate),
+      description: transaction.description,
+      category: transaction.category,
+      isRecurring: transaction.isRecurring,
+      frequency: transaction.frequency,
+      endDate: transaction.endDate ? new Date(transaction.endDate) : null,
+      isFromTransaction: true
+    }));
+
+    // Expand recurring transactions
+    const expandedEvents = [];
+    convertedEvents.forEach(event => {
+      if (event.isRecurring) {
+        const startDate = new Date(event.date);
+        const endDate = event.endDate || new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
+        let currentEventDate = new Date(startDate);
+        let instanceCount = 0;
+
+        while (currentEventDate <= endDate && instanceCount < 52) { // Max 52 occurrences for safety
+          expandedEvents.push({
+            ...event,
+            id: `${event.id}-${instanceCount}`,
+            date: new Date(currentEventDate),
+            title: `${event.title} (Recurring)`
+          });
+
+          // Move to next occurrence based on frequency
+          switch (event.frequency) {
+            case 'weekly':
+              currentEventDate.setDate(currentEventDate.getDate() + 7);
+              break;
+            case 'bi-weekly':
+              currentEventDate.setDate(currentEventDate.getDate() + 14);
+              break;
+            case 'monthly':
+              currentEventDate.setMonth(currentEventDate.getMonth() + 1);
+              break;
+            case 'quarterly':
+              currentEventDate.setMonth(currentEventDate.getMonth() + 3);
+              break;
+            case 'yearly':
+              currentEventDate.setFullYear(currentEventDate.getFullYear() + 1);
+              break;
+          }
+          instanceCount++;
+        }
+      } else {
+        expandedEvents.push(event);
+      }
+    });
+
+    setEvents(expandedEvents);
+  }, [transactions]);
 
   const filteredEvents = useMemo(() => {
     return events.filter(event => eventFilters[event.likelihood]);
   }, [events, eventFilters]);
+
+  // Calculate balance for any given date
+  const calculateBalanceForDate = (targetDate, accountType) => {
+    const startBalance = accountType === 'personal' 
+      ? accountBalances.personalBankBalance 
+      : accountBalances.businessBankBalance;
+
+    // Get all events up to and including the target date
+    const relevantEvents = filteredEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      eventDate.setHours(0, 0, 0, 0);
+      const target = new Date(targetDate);
+      target.setHours(0, 0, 0, 0);
+      return eventDate <= target;
+    });
+
+    // Filter by account type based on category
+    const accountEvents = relevantEvents.filter(event => {
+      if (accountType === 'personal') {
+        return ['personal', 'healthcare', 'food', 'transport'].includes(event.category);
+      } else {
+        return ['business', 'investment', 'marketing', 'equipment', 'utilities', 'rent'].includes(event.category);
+      }
+    });
+
+    // Calculate the running total
+    const eventTotal = accountEvents.reduce((sum, event) => sum + event.amount, 0);
+    return startBalance + eventTotal;
+  };
+
+  // Get week/month/quarter summary
+  const getPeriodSummary = (startDate, endDate) => {
+    const periodEvents = filteredEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate >= startDate && eventDate <= endDate;
+    });
+
+    const revenue = periodEvents
+      .filter(e => e.amount > 0)
+      .reduce((sum, e) => sum + e.amount, 0);
+    
+    const expenses = periodEvents
+      .filter(e => e.amount < 0)
+      .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+
+    return { revenue, expenses, net: revenue - expenses, eventCount: periodEvents.length };
+  };
 
   const getLikelihoodColor = (likelihood) => {
     const colors = {
@@ -59,14 +206,11 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     return colors[likelihood] || 'bg-gray-500';
   };
 
-  const getLikelihoodTextColor = (likelihood) => {
-    const colors = {
-      confirmed: 'text-green-700',
-      high: 'text-blue-700',
-      medium: 'text-yellow-700',
-      low: 'text-red-700'
-    };
-    return colors[likelihood] || 'text-gray-700';
+  const getBalanceColor = (balance) => {
+    if (balance < 0) return 'text-red-600 font-bold';
+    if (balance < 1000) return 'text-orange-600 font-semibold';
+    if (balance < 5000) return 'text-yellow-600';
+    return 'text-green-600';
   };
 
   const navigateDate = (direction) => {
@@ -101,6 +245,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
   };
 
   const { start: rangeStart, end: rangeEnd } = getDateRange();
+  const periodSummary = getPeriodSummary(rangeStart, rangeEnd);
 
   const generateCalendarDays = () => {
     if (viewMode === 'week') {
@@ -116,11 +261,9 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
       const firstDay = new Date(rangeStart);
       const lastDay = new Date(rangeEnd);
       
-      // Start from the beginning of the week containing the first day
       const startDate = new Date(firstDay);
       startDate.setDate(startDate.getDate() - startDate.getDay());
       
-      // End at the end of the week containing the last day
       const endDate = new Date(lastDay);
       endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
       
@@ -131,7 +274,6 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
       }
       return days;
     } else if (viewMode === 'quarter') {
-      // For quarter view, show months as grid items
       const months = [];
       for (let i = 0; i < 3; i++) {
         const month = new Date(rangeStart);
@@ -148,11 +290,6 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     );
   };
 
-  const getTotalForDate = (date) => {
-    const dateEvents = getEventsForDate(date);
-    return dateEvents.reduce((sum, event) => sum + event.amount, 0);
-  };
-
   const handleDateClick = (date) => {
     setSelectedDate(date);
     setIsModalOpen(true);
@@ -162,7 +299,8 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     const newEvent = {
       ...eventData,
       id: events.length + 1,
-      date: selectedDate
+      date: selectedDate,
+      isFromTransaction: false
     };
     setEvents([...events, newEvent]);
   };
@@ -178,45 +316,119 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     }
   };
 
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.abs(amount));
+  };
+
+  const formatCompactCurrency = (amount) => {
+    const absAmount = Math.abs(amount);
+    if (absAmount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    } else if (absAmount >= 1000) {
+      return `$${(amount / 1000).toFixed(1)}K`;
+    } else {
+      return `$${amount}`;
+    }
+  };
+
   const calendarDays = generateCalendarDays();
 
   return (
-    <div className="bg-white shadow rounded-lg overflow-hidden">
+    <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-100">
       {/* Calendar Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <h3 className="text-lg font-medium text-gray-900">{formatDateHeader()}</h3>
-        <div className="flex space-x-1">
-          <button
-            onClick={() => navigateDate(-1)}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setCurrentDate(new Date())}
-            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => navigateDate(1)}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </button>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <div className="px-6 py-4 border-b border-white/20">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold flex items-center">
+              <Calendar className="w-5 h-5 mr-2" />
+              {formatDateHeader()}
+            </h3>
+            <div className="flex space-x-1">
+              <button
+                onClick={() => navigateDate(-1)}
+                className="p-2 text-white/80 hover:text-white rounded-md hover:bg-white/20 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="px-3 py-2 text-sm font-medium bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => navigateDate(1)}
+                className="p-2 text-white/80 hover:text-white rounded-md hover:bg-white/20 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Period Summary */}
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-700/50 to-purple-700/50">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-100 font-medium">Period Revenue</p>
+                  <p className="text-xl font-bold text-white">{formatCurrency(periodSummary.revenue)}</p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-green-400" />
+              </div>
+            </div>
+            
+            <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-100 font-medium">Period Expenses</p>
+                  <p className="text-xl font-bold text-white">{formatCurrency(periodSummary.expenses)}</p>
+                </div>
+                <TrendingDown className="w-8 h-8 text-red-400" />
+              </div>
+            </div>
+            
+            <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-100 font-medium">Net Change</p>
+                  <p className={`text-xl font-bold ${periodSummary.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {periodSummary.net >= 0 ? '+' : ''}{formatCurrency(periodSummary.net)}
+                  </p>
+                </div>
+                <Activity className="w-8 h-8 text-yellow-400" />
+              </div>
+            </div>
+
+            <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-100 font-medium">Transactions</p>
+                  <p className="text-xl font-bold text-white">{periodSummary.eventCount}</p>
+                </div>
+                <Target className="w-8 h-8 text-purple-400" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className={`grid ${viewMode === 'quarter' ? 'grid-cols-3' : viewMode === 'week' ? 'grid-cols-7' : 'grid-cols-7'}`}>
+      <div className={`grid ${viewMode === 'quarter' ? 'grid-cols-3' : 'grid-cols-7'}`}>
         {viewMode !== 'quarter' && (
           <>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 text-center border-r border-b">
+              <div key={day} className="px-3 py-3 text-xs font-bold text-gray-700 bg-gray-50 text-center border-r border-b uppercase tracking-wider">
                 {day}
               </div>
             ))}
@@ -226,38 +438,59 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
         {viewMode === 'quarter' ? (
           // Quarter view - show months
           calendarDays.map((month, index) => {
-            const monthEvents = filteredEvents.filter(event => 
-              event.date.getMonth() === month.getMonth() && 
-              event.date.getFullYear() === month.getFullYear()
-            );
-            const monthTotal = monthEvents.reduce((sum, event) => sum + event.amount, 0);
+            const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+            const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+            const monthSummary = getPeriodSummary(monthStart, monthEnd);
+            
+            const monthEndPersonalBalance = calculateBalanceForDate(monthEnd, 'personal');
+            const monthEndBusinessBalance = calculateBalanceForDate(monthEnd, 'business');
             
             return (
               <div 
                 key={index}
-                className="p-4 border-r border-b min-h-32 hover:bg-gray-50 cursor-pointer"
+                className="p-4 border-r border-b min-h-64 hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => handleDateClick(month)}
               >
-                <div className="font-medium text-gray-900 mb-2">
+                <div className="font-bold text-lg text-gray-900 mb-3">
                   {month.toLocaleDateString('en-US', { month: 'long' })}
                 </div>
-                <div className={`text-sm font-medium ${monthTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${monthTotal.toLocaleString()}
+                
+                {/* Month-end Balances */}
+                <div className="space-y-2 mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                  <div className="text-xs">
+                    <span className="text-gray-600">Personal:</span>
+                    <span className={`ml-2 font-semibold ${getBalanceColor(monthEndPersonalBalance)}`}>
+                      {formatCompactCurrency(monthEndPersonalBalance)}
+                    </span>
+                  </div>
+                  <div className="text-xs">
+                    <span className="text-gray-600">Business:</span>
+                    <span className={`ml-2 font-semibold ${getBalanceColor(monthEndBusinessBalance)}`}>
+                      {formatCompactCurrency(monthEndBusinessBalance)}
+                    </span>
+                  </div>
                 </div>
-                <div className="mt-2 space-y-1">
-                  {monthEvents.slice(0, 3).map(event => (
-                    <div 
-                      key={event.id}
-                      className={`text-xs p-1 rounded ${getLikelihoodColor(event.likelihood)} text-white`}
-                    >
-                      {event.title}
-                    </div>
-                  ))}
-                  {monthEvents.length > 3 && (
-                    <div className="text-xs text-gray-500">
-                      +{monthEvents.length - 3} more
-                    </div>
-                  )}
+
+                {/* Month Summary */}
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Revenue:</span>
+                    <span className="text-green-600 font-semibold">{formatCompactCurrency(monthSummary.revenue)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Expenses:</span>
+                    <span className="text-red-600 font-semibold">{formatCompactCurrency(monthSummary.expenses)}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t">
+                    <span className="text-gray-700 font-medium">Net:</span>
+                    <span className={`font-bold ${monthSummary.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {monthSummary.net >= 0 ? '+' : ''}{formatCompactCurrency(monthSummary.net)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-xs text-gray-500">
+                  {monthSummary.eventCount} transactions
                 </div>
               </div>
             );
@@ -266,39 +499,89 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
           // Week/Month view - show days
           calendarDays.map((date, index) => {
             const dayEvents = getEventsForDate(date);
-            const dayTotal = getTotalForDate(date);
             const isCurrentMonth = viewMode === 'week' || date.getMonth() === currentDate.getMonth();
             const isToday = date.toDateString() === new Date().toDateString();
+            
+            const personalBalance = calculateBalanceForDate(date, 'personal');
+            const businessBalance = calculateBalanceForDate(date, 'business');
+            
+            const dayRevenue = dayEvents.filter(e => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
+            const dayExpenses = dayEvents.filter(e => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0);
             
             return (
               <div 
                 key={index}
-                className={`p-2 border-r border-b min-h-24 hover:bg-gray-50 cursor-pointer ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''} ${isToday ? 'bg-blue-50' : ''}`}
+                className={`relative p-2 border-r border-b min-h-32 hover:bg-gray-50 cursor-pointer transition-all duration-200 ${
+                  !isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''
+                } ${isToday ? 'bg-blue-50 ring-2 ring-blue-500' : ''} ${
+                  hoveredDate === date.toDateString() ? 'bg-yellow-50' : ''
+                }`}
                 onClick={() => handleDateClick(date)}
+                onMouseEnter={() => setHoveredDate(date.toDateString())}
+                onMouseLeave={() => setHoveredDate(null)}
               >
-                <div className={`font-medium mb-1 ${isToday ? 'text-blue-600' : ''}`}>
-                  {date.getDate()}
+                {/* Date Header */}
+                <div className={`font-bold mb-2 flex items-center justify-between ${isToday ? 'text-blue-600' : ''}`}>
+                  <span className="text-sm">{date.getDate()}</span>
+                  {isToday && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Today</span>}
                 </div>
-                {dayTotal !== 0 && (
-                  <div className={`text-xs font-medium ${dayTotal >= 0 ? 'text-green-600' : 'text-red-600'} mb-1`}>
-                    ${dayTotal.toLocaleString()}
+                
+                {/* Balance Predictions */}
+                <div className="space-y-1 mb-2 p-2 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center text-xs">
+                    <Wallet className="w-3 h-3 mr-1 text-gray-500" />
+                    <span className="text-gray-600">P:</span>
+                    <span className={`ml-1 font-semibold ${getBalanceColor(personalBalance)}`}>
+                      {formatCompactCurrency(personalBalance)}
+                    </span>
+                  </div>
+                  <div className="flex items-center text-xs">
+                    <Building className="w-3 h-3 mr-1 text-gray-500" />
+                    <span className="text-gray-600">B:</span>
+                    <span className={`ml-1 font-semibold ${getBalanceColor(businessBalance)}`}>
+                      {formatCompactCurrency(businessBalance)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Day Summary */}
+                {(dayRevenue > 0 || dayExpenses > 0) && (
+                  <div className="text-xs mb-2 p-1 bg-white rounded border border-gray-200">
+                    {dayRevenue > 0 && (
+                      <div className="text-green-600 font-medium">+{formatCompactCurrency(dayRevenue)}</div>
+                    )}
+                    {dayExpenses > 0 && (
+                      <div className="text-red-600 font-medium">-{formatCompactCurrency(dayExpenses)}</div>
+                    )}
                   </div>
                 )}
+
+                {/* Events */}
                 <div className="space-y-1">
-                  {dayEvents.slice(0, viewMode === 'week' ? 4 : 2).map(event => (
+                  {dayEvents.slice(0, viewMode === 'week' ? 3 : 2).map(event => (
                     <div 
                       key={event.id}
-                      className={`text-xs p-1 rounded ${getLikelihoodColor(event.likelihood)} text-white truncate`}
+                      className={`text-xs p-1 rounded ${getLikelihoodColor(event.likelihood)} text-white truncate flex items-center`}
+                      title={`${event.title} - ${formatCurrency(event.amount)}`}
                     >
-                      {event.title}
+                      {event.isRecurring && <Repeat className="w-2 h-2 mr-1" />}
+                      <span className="truncate">{event.title}</span>
                     </div>
                   ))}
-                  {dayEvents.length > (viewMode === 'week' ? 4 : 2) && (
-                    <div className="text-xs text-gray-500">
-                      +{dayEvents.length - (viewMode === 'week' ? 4 : 2)}
+                  {dayEvents.length > (viewMode === 'week' ? 3 : 2) && (
+                    <div className="text-xs text-gray-500 font-medium flex items-center">
+                      <ChevronRight className="w-3 h-3" />
+                      +{dayEvents.length - (viewMode === 'week' ? 3 : 2)} more
                     </div>
                   )}
                 </div>
+
+                {/* Low Balance Warning */}
+                {(personalBalance < 500 || businessBalance < 500) && (
+                  <div className="absolute top-1 right-1">
+                    <AlertCircle className="w-4 h-4 text-orange-500" title="Low balance warning" />
+                  </div>
+                )}
               </div>
             );
           })
@@ -314,4 +597,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
       />
     </div>
   );
-}
+}</code></pre>
+    </div>
+</body>
+</html>
