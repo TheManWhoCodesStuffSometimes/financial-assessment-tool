@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw } from 'lucide-react';
+import { useFinanceContext } from '../context/FinanceContext';
 
 const StatsCard = ({ title, value, change, positive, icon: Icon, gradient }) => (
   <div className={`relative overflow-hidden rounded-2xl ${gradient} p-6 text-white shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300`}>
@@ -23,7 +24,9 @@ const StatsCard = ({ title, value, change, positive, icon: Icon, gradient }) => 
   </div>
 );
 
-const EnhancedTransactionForm = ({ onSubmit }) => {
+const EnhancedTransactionForm = () => {
+  const { addTransaction } = useFinanceContext();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [transaction, setTransaction] = useState({
     type: 'revenue',
     amount: '',
@@ -35,25 +38,27 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
     endDate: ''
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const transactionData = {
-      ...transaction,
-      id: Date.now(),
-      amount: parseFloat(transaction.amount),
-      createdAt: new Date()
-    };
-    onSubmit(transactionData);
-    setTransaction({ 
-      type: 'revenue', 
-      amount: '', 
-      description: '', 
-      category: 'business',
-      isRecurring: false,
-      frequency: 'monthly',
-      scheduledDate: new Date().toISOString().split('T')[0],
-      endDate: ''
-    });
+    setIsSubmitting(true);
+    
+    try {
+      await addTransaction(transaction);
+      setTransaction({ 
+        type: 'revenue', 
+        amount: '', 
+        description: '', 
+        category: 'business',
+        isRecurring: false,
+        frequency: 'monthly',
+        scheduledDate: new Date().toISOString().split('T')[0],
+        endDate: ''
+      });
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const frequencies = [
@@ -260,21 +265,32 @@ const EnhancedTransactionForm = ({ onSubmit }) => {
 
         <button
           onClick={handleSubmit}
-          disabled={!transaction.amount || !transaction.description}
+          disabled={!transaction.amount || !transaction.description || isSubmitting}
           className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
-          <Plus className="w-5 h-5 mr-2" />
-          {transaction.isRecurring ? 'Create Recurring Transaction' : 'Add Transaction'}
+          {isSubmitting ? (
+            <>
+              <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            <>
+              <Plus className="w-5 h-5 mr-2" />
+              {transaction.isRecurring ? 'Create Recurring Transaction' : 'Add Transaction'}
+            </>
+          )}
         </button>
       </div>
     </div>
   );
 };
 
-const TransactionList = ({ transactions, onDeleteTransaction }) => {
+const TransactionList = () => {
+  const { transactions, deleteTransaction } = useFinanceContext();
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
   const [showFilters, setShowFilters] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const filteredTransactions = transactions
     .filter(transaction => {
@@ -331,6 +347,17 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
       healthcare: '🏥'
     };
     return icons[category] || '📄';
+  };
+
+  const handleDeleteTransaction = async (id) => {
+    setDeletingId(id);
+    try {
+      await deleteTransaction(id);
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -507,11 +534,16 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
                       )}
                     </div>
                     <button
-                      onClick={() => onDeleteTransaction(transaction.id)}
-                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                      disabled={deletingId === transaction.id}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                       title="Delete transaction"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {deletingId === transaction.id ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -524,158 +556,79 @@ const TransactionList = ({ transactions, onDeleteTransaction }) => {
   );
 };
 
-const FinanceInput = ({ title, data, onChange, icon: Icon, gradient }) => (
-  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-    <div className={`${gradient} p-6`}>
-      <h3 className="text-xl font-bold text-white flex items-center">
-        <Icon className="w-5 h-5 mr-2" />
-        {title}
-      </h3>
-    </div>
-    
-    <div className="p-6 space-y-4">
-      {Object.entries(data).map(([key, value]) => {
-        const labels = {
-          monthlyIncome: 'Monthly Income',
-          monthlyExpenses: 'Monthly Expenses', 
-          savings: 'Current Savings',
-          monthlyRevenue: 'Monthly Revenue',
-          recurringRevenue: 'Recurring Revenue'
-        };
-        
-        return (
-          <div key={key} className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">{labels[key]}</label>
-            <input
-              type="number"
-              value={value}
-              onChange={(e) => onChange(key, e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold"
-              placeholder={`Enter ${labels[key].toLowerCase()}...`}
-            />
-          </div>
-        );
-      })}
-    </div>
-  </div>
-);
+const FinanceInput = ({ title, data, onChange, icon: Icon, gradient, type }) => {
+  const [isUpdating, setIsUpdating] = useState({});
 
-export default function EnhancedDashboard() {
-  const [personalFinances, setPersonalFinances] = useState({
-    monthlyIncome: 0,
-    monthlyExpenses: 0,
-    savings: 0
-  });
-
-  const [businessFinances, setBusinessFinances] = useState({
-    monthlyRevenue: 0,
-    monthlyExpenses: 0,
-    recurringRevenue: 0
-  });
-
-  const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [mounted, setMounted] = useState(false);
-
-  // Fetch financial data from n8n webhook
-  const fetchFinancialData = async () => {
-    setIsLoading(true);
-    setError(null);
-    
+  const handleChange = async (field, value) => {
+    setIsUpdating(prev => ({ ...prev, [field]: true }));
     try {
-      const response = await fetch('https://thayneautomations.app.n8n.cloud/webhook/retrieve-ironforge-finances', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      // The webhook returns an array with one object, so we get the first item
-      const data = Array.isArray(result) ? result[0] : result;
-      
-      if (data.success && data.data) {
-        setTransactions(data.data.transactions || []);
-        setPersonalFinances(data.data.personalFinances || {
-          monthlyIncome: 0,
-          monthlyExpenses: 0,
-          savings: 0
-        });
-        setBusinessFinances(data.data.businessFinances || {
-          monthlyRevenue: 0,
-          monthlyExpenses: 0,
-          recurringRevenue: 0
-        });
-        setLastUpdated(new Date());
-      } else {
-        throw new Error('Invalid data format received from server');
-      }
-    } catch (err) {
-      setError(`Failed to load financial data: ${err.message}`);
-      console.error('Error fetching financial data:', err);
+      await onChange(field, value);
+    } catch (error) {
+      console.error('Error updating finance data:', error);
     } finally {
-      setIsLoading(false);
+      setIsUpdating(prev => ({ ...prev, [field]: false }));
     }
   };
 
-  const handleRefresh = () => {
-    fetchFinancialData();
-  };
+  return (
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className={`${gradient} p-6`}>
+        <h3 className="text-xl font-bold text-white flex items-center">
+          <Icon className="w-5 h-5 mr-2" />
+          {title}
+        </h3>
+      </div>
+      
+      <div className="p-6 space-y-4">
+        {Object.entries(data).map(([key, value]) => {
+          const labels = {
+            monthlyIncome: 'Monthly Income',
+            monthlyExpenses: 'Monthly Expenses', 
+            savings: 'Current Savings',
+            monthlyRevenue: 'Monthly Revenue',
+            recurringRevenue: 'Recurring Revenue'
+          };
+          
+          return (
+            <div key={key} className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center">
+                {labels[key]}
+                {isUpdating[key] && (
+                  <RefreshCw className="w-3 h-3 ml-2 animate-spin text-blue-500" />
+                )}
+              </label>
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => handleChange(key, e.target.value)}
+                disabled={isUpdating[key]}
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold disabled:opacity-50"
+                placeholder={`Enter ${labels[key].toLowerCase()}...`}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
-  useEffect(() => {
-    setMounted(true);
-    fetchFinancialData();
-  }, []);
-
-  // Calculate dynamic stats based on actual transactions
-  const calculateStats = () => {
-    const revenue = transactions
-      .filter(t => t.type === 'revenue')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const expenses = transactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const monthlyRecurring = transactions
-      .filter(t => t.isRecurring)
-      .reduce((sum, t) => sum + (t.type === 'revenue' ? t.amount : -t.amount), 0);
-    
-    return {
-      currentCash: revenue - expenses + 15420, // Adding base amount
-      monthlyBurn: expenses,
-      monthsToGoal: 8, // This could be calculated based on goals
-      projectedRevenue: revenue
-    };
-  };
-
-  const stats = calculateStats();
-
-  const handlePersonalChange = (field, value) => {
-    setPersonalFinances(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleBusinessChange = (field, value) => {
-    setBusinessFinances(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddTransaction = (transactionData) => {
-    setTransactions(prev => [transactionData, ...prev]);
-  };
-
-  const handleDeleteTransaction = (id) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-  };
+export default function EnhancedDashboard() {
+  const {
+    personalFinances,
+    businessFinances,
+    transactions,
+    isLoading,
+    error,
+    lastUpdated,
+    stats,
+    updatePersonalFinances,
+    updateBusinessFinances,
+    handleRefresh
+  } = useFinanceContext();
 
   // Loading component
-  if (!mounted || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -726,9 +679,7 @@ export default function EnhancedDashboard() {
               className="p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
               title="Refresh data"
             >
-              <svg className={`w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <RefreshCw className={`w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -780,7 +731,7 @@ export default function EnhancedDashboard() {
         {/* Transaction Form */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <EnhancedTransactionForm onSubmit={handleAddTransaction} />
+            <EnhancedTransactionForm />
           </div>
           
           <FinanceInput
@@ -790,9 +741,10 @@ export default function EnhancedDashboard() {
               monthlyExpenses: personalFinances.monthlyExpenses || 0,
               savings: personalFinances.savings || 0
             }}
-            onChange={handlePersonalChange}
+            onChange={updatePersonalFinances}
             icon={DollarSign}
             gradient="bg-gradient-to-r from-green-600 to-teal-600"
+            type="personal"
           />
         </div>
 
@@ -805,9 +757,10 @@ export default function EnhancedDashboard() {
               monthlyExpenses: businessFinances.monthlyExpenses || 0,
               recurringRevenue: businessFinances.recurringRevenue || 0
             }}
-            onChange={handleBusinessChange}
+            onChange={updateBusinessFinances}
             icon={TrendingUp}
             gradient="bg-gradient-to-r from-blue-600 to-indigo-600"
+            type="business"
           />
           
           {/* Summary Stats Card */}
@@ -857,10 +810,7 @@ export default function EnhancedDashboard() {
         </div>
 
         {/* Transaction History */}
-        <TransactionList 
-          transactions={transactions} 
-          onDeleteTransaction={handleDeleteTransaction}
-        />
+        <TransactionList />
 
         {/* Bottom CTA */}
         <div className="text-center py-8">
