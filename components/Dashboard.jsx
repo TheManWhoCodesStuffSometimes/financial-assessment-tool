@@ -669,17 +669,48 @@ const TransactionList = () => {
 
 const AccountBalancesInput = () => {
   const { accountBalances, updateAccountBalances } = useFinanceContext();
-  const [isUpdating, setIsUpdating] = useState({});
+  const [localBalances, setLocalBalances] = useState(accountBalances);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const handleChange = async (field, value) => {
-    setIsUpdating(prev => ({ ...prev, [field]: true }));
+  // Update local state when context updates (from initial load)
+  useState(() => {
+    setLocalBalances(accountBalances);
+  }, [accountBalances]);
+
+  const handleChange = (field, value) => {
+    const newBalances = { ...localBalances, [field]: parseFloat(value) || 0 };
+    setLocalBalances(newBalances);
+    
+    // Check if there are changes
+    const hasAnyChanges = Object.keys(newBalances).some(
+      key => newBalances[key] !== (accountBalances[key] || 0)
+    );
+    setHasChanges(hasAnyChanges);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
     try {
-      await updateAccountBalances(field, value);
+      // Send all balance updates
+      for (const [field, value] of Object.entries(localBalances)) {
+        if (value !== (accountBalances[field] || 0)) {
+          await updateAccountBalances(field, value);
+        }
+      }
+      setHasChanges(false);
     } catch (error) {
-      console.error('Error updating account balance:', error);
+      console.error('Error updating account balances:', error);
     } finally {
-      setIsUpdating(prev => ({ ...prev, [field]: false }));
+      setIsSubmitting(false);
     }
+  };
+
+  const handleReset = () => {
+    setLocalBalances(accountBalances);
+    setHasChanges(false);
   };
 
   const balanceFields = [
@@ -703,6 +734,8 @@ const AccountBalancesInput = () => {
     }
   ];
 
+  const totalAssets = Object.values(localBalances).reduce((sum, val) => sum + (val || 0), 0);
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
       <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6">
@@ -713,21 +746,18 @@ const AccountBalancesInput = () => {
         <p className="text-green-100 text-sm mt-1">Current cash and bank account balances</p>
       </div>
       
-      <div className="p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {balanceFields.map(({ key, label, icon: Icon, color }) => (
           <div key={key} className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
               <Icon className={`w-4 h-4 mr-2 ${color}`} />
               {label}
-              {isUpdating[key] && (
-                <RefreshCw className="w-3 h-3 ml-2 animate-spin text-blue-500" />
-              )}
             </label>
             <input
               type="number"
-              value={accountBalances[key] || 0}
+              value={localBalances[key] || 0}
               onChange={(e) => handleChange(key, e.target.value)}
-              disabled={isUpdating[key]}
+              disabled={isSubmitting}
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold disabled:opacity-50"
               placeholder={`Enter ${label.toLowerCase()}...`}
             />
@@ -738,15 +768,51 @@ const AccountBalancesInput = () => {
         <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
           <h4 className="text-sm font-semibold text-gray-700 mb-3">Total Liquid Assets</h4>
           <div className="text-2xl font-bold text-gray-900">
-            ${((accountBalances.personalBankBalance || 0) + 
-               (accountBalances.businessBankBalance || 0) + 
-               (accountBalances.personalCashOnHand || 0)).toLocaleString()}
+            ${totalAssets.toLocaleString()}
           </div>
           <div className="text-xs text-gray-500 mt-1">
             Sum of all account balances
           </div>
         </div>
-      </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={!hasChanges || isSubmitting}
+            className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-3 px-6 rounded-xl hover:from-green-700 hover:to-teal-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                Updating Balances...
+              </>
+            ) : (
+              <>
+                <Wallet className="w-5 h-5 mr-2" />
+                Update Account Balances
+              </>
+            )}
+          </button>
+          
+          {hasChanges && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={isSubmitting}
+              className="px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors border border-gray-300"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        {hasChanges && (
+          <div className="text-xs text-orange-600 bg-orange-50 p-3 rounded-lg border border-orange-200">
+            You have unsaved changes. Click "Update Account Balances" to save them.
+          </div>
+        )}
+      </form>
     </div>
   );
 };
