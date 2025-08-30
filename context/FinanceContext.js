@@ -29,12 +29,7 @@ export const FinanceProvider = ({ children }) => {
       const payload = {
         changeType,
         changeData,
-        timestamp: new Date().toISOString(),
-        // Include current state for context if needed
-        currentState: {
-          accountBalances,
-          transactionCount: transactions.length
-        }
+        timestamp: new Date().toISOString()
       };
 
       const response = await fetch('https://thayneautomations.app.n8n.cloud/webhook/change-ironforge-finances', {
@@ -124,7 +119,7 @@ export const FinanceProvider = ({ children }) => {
     await sendWebhookUpdate('ADD_TRANSACTION', {
       transaction: newTransaction
     });
-  }, [accountBalances, transactions]);
+  }, []);
 
   const deleteTransaction = useCallback(async (transactionId) => {
     const transactionToDelete = transactions.find(t => t.id === transactionId);
@@ -136,23 +131,31 @@ export const FinanceProvider = ({ children }) => {
       transactionId,
       deletedTransaction: transactionToDelete
     });
-  }, [transactions, accountBalances]);
+  }, [transactions]);
 
-  // Account balance management with webhook integration
+  // Account balance management with webhook integration - FIXED VERSION
   const updateAccountBalances = useCallback(async (field, value) => {
-    const oldValue = accountBalances[field];
+    // Capture the old value BEFORE updating state
+    const oldValue = accountBalances[field] || 0;
     const newValue = parseFloat(value) || 0;
     
-    setAccountBalances(prev => ({ ...prev, [field]: newValue }));
+    // Create the updated balances object
+    const updatedBalances = { 
+      ...accountBalances, 
+      [field]: newValue 
+    };
     
-    // Send webhook update
+    // Update the state
+    setAccountBalances(updatedBalances);
+    
+    // Send webhook update with correct data
     await sendWebhookUpdate('UPDATE_ACCOUNT_BALANCES', {
       field,
       oldValue,
       newValue,
-      updatedBalances: { ...accountBalances, [field]: newValue }
+      updatedBalances: updatedBalances
     });
-  }, [accountBalances, transactions]);
+  }, [accountBalances]);
 
   // Load data on mount
   useEffect(() => {
