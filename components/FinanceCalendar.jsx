@@ -1,76 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Finance Calendar - components/FinanceCalendar.jsx</title>
-    <style>
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            margin: 0;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        h1 {
-            color: #1f2937;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        .subtitle {
-            color: #6b7280;
-            margin-bottom: 30px;
-        }
-        pre {
-            background: #1e293b;
-            color: #e2e8f0;
-            padding: 25px;
-            border-radius: 12px;
-            overflow-x: auto;
-            font-size: 13px;
-            line-height: 1.6;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        .file-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 12px 12px 0 0;
-            margin-bottom: -5px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .file-icon {
-            width: 20px;
-            height: 20px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🚀 Enhanced Financial Forecasting Calendar</h1>
-        <p class="subtitle">Complete replacement for components/FinanceCalendar.jsx with predictive balance tracking</p>
-        
-        <div class="file-header">
-            <div class="file-icon">📄</div>
-            components/FinanceCalendar.jsx
-        </div>
-        <pre><code>import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar, DollarSign, TrendingUp, TrendingDown, AlertCircle, Target, Repeat, Clock, ChevronRight, Activity, Wallet, Building } from 'lucide-react';
 import EventModal from './EventModal';
 import { useFinanceContext } from '../context/FinanceContext';
@@ -597,7 +525,4 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
       />
     </div>
   );
-}</code></pre>
-    </div>
-</body>
-</html>
+}
