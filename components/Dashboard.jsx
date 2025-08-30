@@ -1,5 +1,116 @@
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw } from 'lucide-react';
+const PersonalFinanceDisplay = () => {
+  const { stats, transactions } = useFinanceContext();
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6">
+        <h3 className="text-xl font-bold text-white flex items-center">
+          <Wallet className="w-5 h-5 mr-2" />
+          Personal Finance Overview
+        </h3>
+        <p className="text-green-100 text-sm mt-1">Calculated from your personal transactions</p>
+      </div>
+      
+      <div className="p-6 space-y-4">
+        <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+          <span className="text-sm font-medium text-green-700">Total Income</span>
+          <span className="text-lg font-bold text-green-900">
+            {formatCurrency(stats.personalStats.totalIncome)}
+          </span>
+        </div>
+        
+        <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+          <span className="text-sm font-medium text-red-700">Total Expenses</span>
+          <span className="text-lg font-bold text-red-900">
+            {formatCurrency(stats.personalStats.totalExpenses)}
+          </span>
+        </div>
+        
+        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+          <span className="text-sm font-medium text-blue-700">Net Income</span>
+          <span className={`text-lg font-bold ${
+            stats.personalStats.netIncome >= 0 ? 'text-green-900' : 'text-red-900'
+          }`}>
+            {formatCurrency(stats.personalStats.netIncome)}
+          </span>
+        </div>
+
+        <div className="text-xs text-gray-500 mt-4">
+          Based on {transactions.filter(t => t.category === 'personal' || t.category === 'healthcare' || t.category === 'food' || t.category === 'transport').length} personal transactions
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BusinessFinanceDisplay = () => {
+  const { stats, transactions } = useFinanceContext();
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+        <h3 className="text-xl font-bold text-white flex items-center">
+          <Building className="w-5 h-5 mr-2" />
+          Business Finance Overview
+        </h3>
+        <p className="text-blue-100 text-sm mt-1">Calculated from your business transactions</p>
+      </div>
+      
+      <div className="p-6 space-y-4">
+        <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+          <span className="text-sm font-medium text-green-700">Total Revenue</span>
+          <span className="text-lg font-bold text-green-900">
+            {formatCurrency(stats.businessStats.totalRevenue)}
+          </span>
+        </div>
+        
+        <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+          <span className="text-sm font-medium text-red-700">Total Expenses</span>
+          <span className="text-lg font-bold text-red-900">
+            {formatCurrency(stats.businessStats.totalExpenses)}
+          </span>
+        </div>
+        
+        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+          <span className="text-sm font-medium text-blue-700">Net Income</span>
+          <span className={`text-lg font-bold ${
+            stats.businessStats.netIncome >= 0 ? 'text-green-900' : 'text-red-900'
+          }`}>
+            {formatCurrency(stats.businessStats.netIncome)}
+          </span>
+        </div>
+
+        <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+          <span className="text-sm font-medium text-purple-700">Monthly Recurring</span>
+          <span className={`text-lg font-bold ${
+            stats.businessStats.monthlyRecurring >= 0 ? 'text-green-900' : 'text-red-900'
+          }`}>
+            {formatCurrency(stats.businessStats.monthlyRecurring)}
+          </span>
+        </div>
+
+        <div className="text-xs text-gray-500 mt-4">
+          Based on {transactions.filter(t => t.category === 'business' || t.category === 'investment' || t.category === 'marketing' || t.category === 'equipment' || t.category === 'utilities' || t.category === 'rent').length} business transactions
+        </div>
+      </div>
+    </div>
+  );
+};import { useState } from 'react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw, Wallet, Building, CreditCard } from 'lucide-react';
 import { useFinanceContext } from '../context/FinanceContext';
 
 const StatsCard = ({ title, value, change, positive, icon: Icon, gradient }) => (
@@ -556,58 +667,85 @@ const TransactionList = () => {
   );
 };
 
-const FinanceInput = ({ title, data, onChange, icon: Icon, gradient, type }) => {
+const AccountBalancesInput = () => {
+  const { accountBalances, updateAccountBalances } = useFinanceContext();
   const [isUpdating, setIsUpdating] = useState({});
 
   const handleChange = async (field, value) => {
     setIsUpdating(prev => ({ ...prev, [field]: true }));
     try {
-      await onChange(field, value);
+      await updateAccountBalances(field, value);
     } catch (error) {
-      console.error('Error updating finance data:', error);
+      console.error('Error updating account balance:', error);
     } finally {
       setIsUpdating(prev => ({ ...prev, [field]: false }));
     }
   };
 
+  const balanceFields = [
+    {
+      key: 'personalBankBalance',
+      label: 'Personal Bank Balance',
+      icon: Wallet,
+      color: 'text-green-600'
+    },
+    {
+      key: 'businessBankBalance', 
+      label: 'Business Bank Balance',
+      icon: Building,
+      color: 'text-blue-600'
+    },
+    {
+      key: 'personalCashOnHand',
+      label: 'Personal Cash on Hand',
+      icon: CreditCard,
+      color: 'text-purple-600'
+    }
+  ];
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className={`${gradient} p-6`}>
+      <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6">
         <h3 className="text-xl font-bold text-white flex items-center">
-          <Icon className="w-5 h-5 mr-2" />
-          {title}
+          <Wallet className="w-5 h-5 mr-2" />
+          Account Balances
         </h3>
+        <p className="text-green-100 text-sm mt-1">Current cash and bank account balances</p>
       </div>
       
       <div className="p-6 space-y-4">
-        {Object.entries(data).map(([key, value]) => {
-          const labels = {
-            monthlyIncome: 'Monthly Income',
-            monthlyExpenses: 'Monthly Expenses', 
-            savings: 'Current Savings',
-            monthlyRevenue: 'Monthly Revenue',
-            recurringRevenue: 'Recurring Revenue'
-          };
-          
-          return (
-            <div key={key} className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 flex items-center">
-                {labels[key]}
-                {isUpdating[key] && (
-                  <RefreshCw className="w-3 h-3 ml-2 animate-spin text-blue-500" />
-                )}
-              </label>
-              <input
-                type="number"
-                value={value}
-                onChange={(e) => handleChange(key, e.target.value)}
-                disabled={isUpdating[key]}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold disabled:opacity-50"
-                placeholder={`Enter ${labels[key].toLowerCase()}...`}
-              />
-            </div>
-          );
-        })}
+        {balanceFields.map(({ key, label, icon: Icon, color }) => (
+          <div key={key} className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              <Icon className={`w-4 h-4 mr-2 ${color}`} />
+              {label}
+              {isUpdating[key] && (
+                <RefreshCw className="w-3 h-3 ml-2 animate-spin text-blue-500" />
+              )}
+            </label>
+            <input
+              type="number"
+              value={accountBalances[key] || 0}
+              onChange={(e) => handleChange(key, e.target.value)}
+              disabled={isUpdating[key]}
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold disabled:opacity-50"
+              placeholder={`Enter ${label.toLowerCase()}...`}
+            />
+          </div>
+        ))}
+        
+        {/* Total Balance Summary */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Total Liquid Assets</h4>
+          <div className="text-2xl font-bold text-gray-900">
+            ${((accountBalances.personalBankBalance || 0) + 
+               (accountBalances.businessBankBalance || 0) + 
+               (accountBalances.personalCashOnHand || 0)).toLocaleString()}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            Sum of all account balances
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -615,15 +753,12 @@ const FinanceInput = ({ title, data, onChange, icon: Icon, gradient, type }) => 
 
 export default function EnhancedDashboard() {
   const {
-    personalFinances,
-    businessFinances,
+    accountBalances,
     transactions,
     isLoading,
     error,
     lastUpdated,
     stats,
-    updatePersonalFinances,
-    updateBusinessFinances,
     handleRefresh
   } = useFinanceContext();
 
@@ -728,85 +863,19 @@ export default function EnhancedDashboard() {
           />
         </div>
 
-        {/* Transaction Form */}
+        {/* Transaction Form and Account Balances */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <EnhancedTransactionForm />
           </div>
           
-          <FinanceInput
-            title="Personal Overview"
-            data={{
-              monthlyIncome: personalFinances.monthlyIncome || 0,
-              monthlyExpenses: personalFinances.monthlyExpenses || 0,
-              savings: personalFinances.savings || 0
-            }}
-            onChange={updatePersonalFinances}
-            icon={DollarSign}
-            gradient="bg-gradient-to-r from-green-600 to-teal-600"
-            type="personal"
-          />
+          <AccountBalancesInput />
         </div>
 
-        {/* Business Finances Section */}
+        {/* Personal and Business Finance Displays */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <FinanceInput
-            title="Business Finances"
-            data={{
-              monthlyRevenue: businessFinances.monthlyRevenue || 0,
-              monthlyExpenses: businessFinances.monthlyExpenses || 0,
-              recurringRevenue: businessFinances.recurringRevenue || 0
-            }}
-            onChange={updateBusinessFinances}
-            icon={TrendingUp}
-            gradient="bg-gradient-to-r from-blue-600 to-indigo-600"
-            type="business"
-          />
-          
-          {/* Summary Stats Card */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
-              <h3 className="text-xl font-bold text-white flex items-center">
-                <Target className="w-5 h-5 mr-2" />
-                Financial Summary
-              </h3>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                <span className="text-sm font-medium text-green-700">Total Revenue</span>
-                <span className="text-lg font-bold text-green-900">
-                  ${(personalFinances.monthlyIncome + businessFinances.monthlyRevenue).toLocaleString()}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                <span className="text-sm font-medium text-red-700">Total Expenses</span>
-                <span className="text-lg font-bold text-red-900">
-                  ${(personalFinances.monthlyExpenses + businessFinances.monthlyExpenses).toLocaleString()}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                <span className="text-sm font-medium text-blue-700">Net Monthly</span>
-                <span className={`text-lg font-bold ${
-                  (personalFinances.monthlyIncome + businessFinances.monthlyRevenue) - 
-                  (personalFinances.monthlyExpenses + businessFinances.monthlyExpenses) >= 0 
-                  ? 'text-green-900' : 'text-red-900'
-                }`}>
-                  ${((personalFinances.monthlyIncome + businessFinances.monthlyRevenue) - 
-                     (personalFinances.monthlyExpenses + businessFinances.monthlyExpenses)).toLocaleString()}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm font-medium text-gray-700">Current Savings</span>
-                <span className="text-lg font-bold text-gray-900">
-                  ${personalFinances.savings.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
+          <PersonalFinanceDisplay />
+          <BusinessFinanceDisplay />
         </div>
 
         {/* Transaction History */}
