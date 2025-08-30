@@ -784,12 +784,76 @@ export default function EnhancedDashboard() {
           </div>
           
           <FinanceInput
-            title="Quick Stats"
-            data={personalFinances}
+            title="Personal Overview"
+            data={{
+              monthlyIncome: personalFinances.monthlyIncome || 0,
+              monthlyExpenses: personalFinances.monthlyExpenses || 0,
+              savings: personalFinances.savings || 0
+            }}
             onChange={handlePersonalChange}
             icon={DollarSign}
             gradient="bg-gradient-to-r from-green-600 to-teal-600"
           />
+        </div>
+
+        {/* Business Finances Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <FinanceInput
+            title="Business Finances"
+            data={{
+              monthlyRevenue: businessFinances.monthlyRevenue || 0,
+              monthlyExpenses: businessFinances.monthlyExpenses || 0,
+              recurringRevenue: businessFinances.recurringRevenue || 0
+            }}
+            onChange={handleBusinessChange}
+            icon={TrendingUp}
+            gradient="bg-gradient-to-r from-blue-600 to-indigo-600"
+          />
+          
+          {/* Summary Stats Card */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6">
+              <h3 className="text-xl font-bold text-white flex items-center">
+                <Target className="w-5 h-5 mr-2" />
+                Financial Summary
+              </h3>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                <span className="text-sm font-medium text-green-700">Total Revenue</span>
+                <span className="text-lg font-bold text-green-900">
+                  ${(personalFinances.monthlyIncome + businessFinances.monthlyRevenue).toLocaleString()}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                <span className="text-sm font-medium text-red-700">Total Expenses</span>
+                <span className="text-lg font-bold text-red-900">
+                  ${(personalFinances.monthlyExpenses + businessFinances.monthlyExpenses).toLocaleString()}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                <span className="text-sm font-medium text-blue-700">Net Monthly</span>
+                <span className={`text-lg font-bold ${
+                  (personalFinances.monthlyIncome + businessFinances.monthlyRevenue) - 
+                  (personalFinances.monthlyExpenses + businessFinances.monthlyExpenses) >= 0 
+                  ? 'text-green-900' : 'text-red-900'
+                }`}>
+                  ${((personalFinances.monthlyIncome + businessFinances.monthlyRevenue) - 
+                     (personalFinances.monthlyExpenses + businessFinances.monthlyExpenses)).toLocaleString()}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Current Savings</span>
+                <span className="text-lg font-bold text-gray-900">
+                  ${personalFinances.savings.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Transaction History */}
