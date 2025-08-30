@@ -11,16 +11,10 @@ export const useFinanceContext = () => {
 };
 
 export const FinanceProvider = ({ children }) => {
-  const [personalFinances, setPersonalFinances] = useState({
-    monthlyIncome: 0,
-    monthlyExpenses: 0,
-    savings: 0
-  });
-
-  const [businessFinances, setBusinessFinances] = useState({
-    monthlyRevenue: 0,
-    monthlyExpenses: 0,
-    recurringRevenue: 0
+  const [accountBalances, setAccountBalances] = useState({
+    personalBankBalance: 0,
+    businessBankBalance: 0,
+    personalCashOnHand: 0
   });
 
   const [transactions, setTransactions] = useState([]);
@@ -38,8 +32,7 @@ export const FinanceProvider = ({ children }) => {
         timestamp: new Date().toISOString(),
         // Include current state for context if needed
         currentState: {
-          personalFinances,
-          businessFinances,
+          accountBalances,
           transactionCount: transactions.length
         }
       };
@@ -92,15 +85,10 @@ export const FinanceProvider = ({ children }) => {
       
       if (data.success && data.data) {
         setTransactions(data.data.transactions || []);
-        setPersonalFinances(data.data.personalFinances || {
-          monthlyIncome: 0,
-          monthlyExpenses: 0,
-          savings: 0
-        });
-        setBusinessFinances(data.data.businessFinances || {
-          monthlyRevenue: 0,
-          monthlyExpenses: 0,
-          recurringRevenue: 0
+        setAccountBalances(data.data.accountBalances || {
+          personalBankBalance: 0,
+          businessBankBalance: 0,
+          personalCashOnHand: 0
         });
         setLastUpdated(new Date());
         setIsDataLoaded(true);
@@ -136,7 +124,7 @@ export const FinanceProvider = ({ children }) => {
     await sendWebhookUpdate('ADD_TRANSACTION', {
       transaction: newTransaction
     });
-  }, [personalFinances, businessFinances, transactions]);
+  }, [accountBalances, transactions]);
 
   const deleteTransaction = useCallback(async (transactionId) => {
     const transactionToDelete = transactions.find(t => t.id === transactionId);
@@ -148,52 +136,52 @@ export const FinanceProvider = ({ children }) => {
       transactionId,
       deletedTransaction: transactionToDelete
     });
-  }, [transactions, personalFinances, businessFinances]);
+  }, [transactions, accountBalances]);
 
-  // Personal finance management with webhook integration
-  const updatePersonalFinances = useCallback(async (field, value) => {
-    const oldValue = personalFinances[field];
+  // Account balance management with webhook integration
+  const updateAccountBalances = useCallback(async (field, value) => {
+    const oldValue = accountBalances[field];
     const newValue = parseFloat(value) || 0;
     
-    setPersonalFinances(prev => ({ ...prev, [field]: newValue }));
+    setAccountBalances(prev => ({ ...prev, [field]: newValue }));
     
     // Send webhook update
-    await sendWebhookUpdate('UPDATE_PERSONAL_FINANCES', {
+    await sendWebhookUpdate('UPDATE_ACCOUNT_BALANCES', {
       field,
       oldValue,
       newValue,
-      updatedFinances: { ...personalFinances, [field]: newValue }
+      updatedBalances: { ...accountBalances, [field]: newValue }
     });
-  }, [personalFinances, businessFinances, transactions]);
-
-  // Business finance management with webhook integration
-  const updateBusinessFinances = useCallback(async (field, value) => {
-    const oldValue = businessFinances[field];
-    const newValue = parseFloat(value) || 0;
-    
-    setBusinessFinances(prev => ({ ...prev, [field]: newValue }));
-    
-    // Send webhook update
-    await sendWebhookUpdate('UPDATE_BUSINESS_FINANCES', {
-      field,
-      oldValue,
-      newValue,
-      updatedFinances: { ...businessFinances, [field]: newValue }
-    });
-  }, [businessFinances, personalFinances, transactions]);
+  }, [accountBalances, transactions]);
 
   // Load data on mount
   useEffect(() => {
     fetchFinancialData();
   }, [fetchFinancialData]);
 
-  // Calculate dynamic stats based on actual transactions
+  // Calculate stats from transactions
   const calculateStats = useCallback(() => {
-    const revenue = transactions
+    const personalRevenue = transactions
+      .filter(t => t.type === 'revenue' && (t.category === 'personal' || t.category === 'healthcare' || t.category === 'food' || t.category === 'transport'))
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const personalExpenses = transactions
+      .filter(t => t.type === 'expense' && (t.category === 'personal' || t.category === 'healthcare' || t.category === 'food' || t.category === 'transport'))
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const businessRevenue = transactions
+      .filter(t => t.type === 'revenue' && (t.category === 'business' || t.category === 'investment' || t.category === 'marketing'))
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const businessExpenses = transactions
+      .filter(t => t.type === 'expense' && (t.category === 'business' || t.category === 'investment' || t.category === 'marketing' || t.category === 'equipment' || t.category === 'utilities' || t.category === 'rent'))
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalRevenue = transactions
       .filter(t => t.type === 'revenue')
       .reduce((sum, t) => sum + t.amount, 0);
     
-    const expenses = transactions
+    const totalExpenses = transactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
     
@@ -202,17 +190,34 @@ export const FinanceProvider = ({ children }) => {
       .reduce((sum, t) => sum + (t.type === 'revenue' ? t.amount : -t.amount), 0);
     
     return {
-      currentCash: revenue - expenses + 15420, // Adding base amount
-      monthlyBurn: expenses,
+      // Overall stats
+      currentCash: totalRevenue - totalExpenses + accountBalances.personalBankBalance + accountBalances.businessBankBalance + accountBalances.personalCashOnHand,
+      monthlyBurn: totalExpenses,
       monthsToGoal: 8, // This could be calculated based on goals
-      projectedRevenue: revenue
+      projectedRevenue: totalRevenue,
+      
+      // Personal stats (calculated from transactions)
+      personalStats: {
+        totalIncome: personalRevenue,
+        totalExpenses: personalExpenses,
+        netIncome: personalRevenue - personalExpenses
+      },
+      
+      // Business stats (calculated from transactions)  
+      businessStats: {
+        totalRevenue: businessRevenue,
+        totalExpenses: businessExpenses,
+        netIncome: businessRevenue - businessExpenses,
+        monthlyRecurring: transactions
+          .filter(t => t.isRecurring && (t.category === 'business' || t.category === 'investment' || t.category === 'marketing'))
+          .reduce((sum, t) => sum + (t.type === 'revenue' ? t.amount : -t.amount), 0)
+      }
     };
-  }, [transactions]);
+  }, [transactions, accountBalances]);
 
   const value = {
     // State
-    personalFinances,
-    businessFinances,
+    accountBalances,
     transactions,
     isLoading,
     error,
@@ -222,8 +227,7 @@ export const FinanceProvider = ({ children }) => {
     // Actions
     addTransaction,
     deleteTransaction,
-    updatePersonalFinances,
-    updateBusinessFinances,
+    updateAccountBalances,
     handleRefresh,
     
     // Utilities
