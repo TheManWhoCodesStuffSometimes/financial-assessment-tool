@@ -1,3 +1,29 @@
+import { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw, Wallet, Building, CreditCard } from 'lucide-react';
+import { useFinanceContext } from '../context/FinanceContext';
+
+const StatsCard = ({ title, value, change, positive, icon: Icon, gradient }) => (
+  <div className={`relative overflow-hidden rounded-2xl ${gradient} p-6 text-white shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300`}>
+    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+    <div className="relative z-10">
+      <div className="flex items-center justify-between mb-4">
+        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+          <Icon className="w-6 h-6" />
+        </div>
+        <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${positive ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+          {positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          <span>{change}</span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium opacity-90">{title}</h3>
+        <p className="text-2xl font-bold">{value}</p>
+      </div>
+    </div>
+    <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-white/5 rounded-full"></div>
+  </div>
+);
+
 const PersonalFinanceDisplay = () => {
   const { stats, transactions } = useFinanceContext();
 
@@ -109,31 +135,7 @@ const BusinessFinanceDisplay = () => {
       </div>
     </div>
   );
-};import { useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw, Wallet, Building, CreditCard } from 'lucide-react';
-import { useFinanceContext } from '../context/FinanceContext';
-
-const StatsCard = ({ title, value, change, positive, icon: Icon, gradient }) => (
-  <div className={`relative overflow-hidden rounded-2xl ${gradient} p-6 text-white shadow-xl hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300`}>
-    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-    <div className="relative z-10">
-      <div className="flex items-center justify-between mb-4">
-        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-          <Icon className="w-6 h-6" />
-        </div>
-        <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${positive ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-          {positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          <span>{change}</span>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium opacity-90">{title}</h3>
-        <p className="text-2xl font-bold">{value}</p>
-      </div>
-    </div>
-    <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-white/5 rounded-full"></div>
-  </div>
-);
+};
 
 const EnhancedTransactionForm = () => {
   const { addTransaction } = useFinanceContext();
@@ -667,15 +669,24 @@ const TransactionList = () => {
   );
 };
 
+// FIXED AccountBalancesInput Component
 const AccountBalancesInput = () => {
   const { accountBalances, updateAccountBalances } = useFinanceContext();
-  const [localBalances, setLocalBalances] = useState(accountBalances);
+  const [localBalances, setLocalBalances] = useState({
+    personalBankBalance: 0,
+    businessBankBalance: 0,
+    personalCashOnHand: 0
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Update local state when context updates (from initial load)
-  useState(() => {
-    setLocalBalances(accountBalances);
+  useEffect(() => {
+    setLocalBalances({
+      personalBankBalance: accountBalances.personalBankBalance || 0,
+      businessBankBalance: accountBalances.businessBankBalance || 0,
+      personalCashOnHand: accountBalances.personalCashOnHand || 0
+    });
   }, [accountBalances]);
 
   const handleChange = (field, value) => {
@@ -694,12 +705,19 @@ const AccountBalancesInput = () => {
     setIsSubmitting(true);
     
     try {
-      // Send all balance updates
-      for (const [field, value] of Object.entries(localBalances)) {
-        if (value !== (accountBalances[field] || 0)) {
-          await updateAccountBalances(field, value);
+      // Send all balance updates with proper change tracking
+      const fieldsToUpdate = ['personalBankBalance', 'businessBankBalance', 'personalCashOnHand'];
+      
+      for (const field of fieldsToUpdate) {
+        const oldValue = accountBalances[field] || 0;
+        const newValue = localBalances[field] || 0;
+        
+        // Only send update if value has actually changed
+        if (oldValue !== newValue) {
+          await updateAccountBalances(field, newValue);
         }
       }
+      
       setHasChanges(false);
     } catch (error) {
       console.error('Error updating account balances:', error);
@@ -709,7 +727,11 @@ const AccountBalancesInput = () => {
   };
 
   const handleReset = () => {
-    setLocalBalances(accountBalances);
+    setLocalBalances({
+      personalBankBalance: accountBalances.personalBankBalance || 0,
+      businessBankBalance: accountBalances.businessBankBalance || 0,
+      personalCashOnHand: accountBalances.personalCashOnHand || 0
+    });
     setHasChanges(false);
   };
 
@@ -755,7 +777,8 @@ const AccountBalancesInput = () => {
             </label>
             <input
               type="number"
-              value={localBalances[key] || 0}
+              step="0.01"
+              value={localBalances[key] || ''}
               onChange={(e) => handleChange(key, e.target.value)}
               disabled={isSubmitting}
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold disabled:opacity-50"
