@@ -9,6 +9,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hoveredDate, setHoveredDate] = useState(null);
+  const [expandedDays, setExpandedDays] = useState(new Set()); // NEW: Track which days are expanded
 
   // Convert transactions to calendar events - NO MORE SEPARATE EVENTS
   const calendarEvents = useMemo(() => {
@@ -133,6 +134,18 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     return colors[likelihood] || 'bg-gray-500';
   };
 
+  // NEW: Get event color based on type (revenue = green, expense = red) with opacity based on likelihood
+  const getEventColor = (event) => {
+    const baseColor = event.type === 'revenue' ? 'bg-green' : 'bg-red';
+    const opacity = {
+      confirmed: '500',
+      high: '400', 
+      medium: '300',
+      low: '200'
+    };
+    return `${baseColor}-${opacity[event.likelihood] || '300'}`;
+  };
+
   const getBalanceColor = (balance) => {
     if (balance < 0) return 'text-red-600 font-bold';
     if (balance < 1000) return 'text-orange-600 font-semibold';
@@ -220,6 +233,18 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
   const handleDateClick = (date) => {
     setSelectedDate(date);
     setIsModalOpen(true);
+  };
+
+  // NEW: Toggle expanded state for a specific day
+  const toggleDayExpansion = (dateString, e) => {
+    e.stopPropagation(); // Prevent triggering date click
+    const newExpanded = new Set(expandedDays);
+    if (newExpanded.has(dateString)) {
+      newExpanded.delete(dateString);
+    } else {
+      newExpanded.add(dateString);
+    }
+    setExpandedDays(newExpanded);
   };
 
   const formatDateHeader = () => {
@@ -487,22 +512,50 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
 
                 {/* Events */}
                 <div className="space-y-1">
-                  {dayEvents.slice(0, viewMode === 'week' ? 3 : 2).map(event => (
-                    <div 
-                      key={event.id}
-                      className={`text-xs p-1 rounded ${getLikelihoodColor(event.likelihood)} text-white truncate flex items-center`}
-                      title={`${event.title} - ${formatCurrency(event.amount)}`}
-                    >
-                      {event.isRecurring && <Repeat className="w-2 h-2 mr-1" />}
-                      <span className="truncate">{event.title}</span>
-                    </div>
-                  ))}
-                  {dayEvents.length > (viewMode === 'week' ? 3 : 2) && (
-                    <div className="text-xs text-gray-500 font-medium flex items-center">
-                      <ChevronRight className="w-3 h-3" />
-                      +{dayEvents.length - (viewMode === 'week' ? 3 : 2)} more
-                    </div>
-                  )}
+                  {(() => {
+                    const dateString = date.toDateString();
+                    const isExpanded = expandedDays.has(dateString);
+                    const maxVisible = viewMode === 'week' ? 3 : 2;
+                    const visibleEvents = isExpanded ? dayEvents : dayEvents.slice(0, maxVisible);
+                    const hasMore = dayEvents.length > maxVisible;
+
+                    return (
+                      <>
+                        {visibleEvents.map(event => (
+                          <div 
+                            key={event.id}
+                            className={`text-xs p-1 rounded ${getEventColor(event)} text-white truncate flex items-center`}
+                            title={`${event.title} - ${formatCurrency(event.amount)} (${event.likelihood})`}
+                          >
+                            {event.isRecurring && <Repeat className="w-2 h-2 mr-1" />}
+                            <span className="truncate">{event.title}</span>
+                          </div>
+                        ))}
+                        
+                        {hasMore && (
+                          <button
+                            onClick={(e) => toggleDayExpansion(dateString, e)}
+                            className="text-xs text-gray-600 hover:text-gray-800 font-medium flex items-center w-full p-1 rounded hover:bg-gray-100 transition-colors"
+                            title={isExpanded ? 'Show less' : `Show ${dayEvents.length - maxVisible} more events`}
+                          >
+                            {isExpanded ? (
+                              <>
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                                Show less
+                              </>
+                            ) : (
+                              <>
+                                <ChevronRight className="w-3 h-3 mr-1" />
+                                +{dayEvents.length - maxVisible} more
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Low Balance Warning */}
