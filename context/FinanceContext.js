@@ -111,35 +111,70 @@ export const FinanceProvider = ({ children }) => {
     await fetchFinancialData();
   }, [fetchFinancialData]);
 
-  // Transaction management with webhook integration - UPDATED TO HANDLE LIKELIHOOD
+  // Transaction management with webhook integration - FIXED ID HANDLING
   const addTransaction = useCallback(async (transactionData) => {
+    // Generate a temporary ID for optimistic updates
+    const tempId = Date.now();
+    
     const newTransaction = {
       ...transactionData,
-      id: Date.now(),
+      id: tempId, // This will be replaced by the backend's actual Transaction ID
       amount: parseFloat(transactionData.amount),
       // Ensure likelihood field is included
       likelihood: transactionData.likelihood || 'confirmed',
       createdAt: new Date()
     };
     
+    // Optimistic update - add to UI immediately
     setTransactions(prev => [newTransaction, ...prev]);
     
-    // Send webhook update with likelihood data
-    await sendWebhookUpdate('ADD_TRANSACTION', {
-      transaction: newTransaction
-    });
+    try {
+      // Send webhook update with likelihood data
+      const result = await sendWebhookUpdate('ADD_TRANSACTION', {
+        transaction: newTransaction
+      });
+      
+      // If webhook returns the actual Transaction ID, update the local transaction
+      if (result && result.transactionId) {
+        setTransactions(prev => 
+          prev.map(t => 
+            t.id === tempId 
+              ? { ...t, id: result.transactionId }
+              : t
+          )
+        );
+      }
+    } catch (error) {
+      // If webhook fails, remove the optimistic update
+      console.error('Failed to add transaction:', error);
+      setTransactions(prev => prev.filter(t => t.id !== tempId));
+      throw error;
+    }
   }, []);
 
   const deleteTransaction = useCallback(async (transactionId) => {
     const transactionToDelete = transactions.find(t => t.id === transactionId);
     
+    if (!transactionToDelete) {
+      console.error('Transaction not found:', transactionId);
+      return;
+    }
+    
+    // Optimistic update - remove from UI immediately
     setTransactions(prev => prev.filter(t => t.id !== transactionId));
     
-    // Send webhook update
-    await sendWebhookUpdate('DELETE_TRANSACTION', {
-      transactionId,
-      deletedTransaction: transactionToDelete
-    });
+    try {
+      // Send webhook update with the ACTUAL Transaction ID (not the timestamp)
+      await sendWebhookUpdate('DELETE_TRANSACTION', {
+        transactionId: transactionId, // This should be the real Transaction ID from Airtable
+        deletedTransaction: transactionToDelete
+      });
+    } catch (error) {
+      // If webhook fails, restore the transaction
+      console.error('Failed to delete transaction:', error);
+      setTransactions(prev => [transactionToDelete, ...prev]);
+      throw error;
+    }
   }, [transactions]);
 
   // Account balance management with webhook integration
