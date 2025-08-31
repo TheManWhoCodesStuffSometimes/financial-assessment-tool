@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw, Wallet, Building, CreditCard } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Target, Zap, Plus, Filter, ChevronDown, Repeat, Clock, Trash2, RefreshCw, Wallet, Building, CreditCard, AlertCircle } from 'lucide-react';
 import { useFinanceContext } from '../context/FinanceContext';
 
 const StatsCard = ({ title, value, change, positive, icon: Icon, gradient }) => (
@@ -145,6 +145,7 @@ const EnhancedTransactionForm = () => {
     amount: '',
     description: '',
     category: 'business',
+    likelihood: 'confirmed', // NEW FIELD
     isRecurring: false,
     frequency: 'monthly',
     scheduledDate: new Date().toISOString().split('T')[0],
@@ -162,6 +163,7 @@ const EnhancedTransactionForm = () => {
         amount: '', 
         description: '', 
         category: 'business',
+        likelihood: 'confirmed', // Reset to confirmed
         isRecurring: false,
         frequency: 'monthly',
         scheduledDate: new Date().toISOString().split('T')[0],
@@ -195,6 +197,17 @@ const EnhancedTransactionForm = () => {
     { value: 'healthcare', label: '🏥 Healthcare', icon: '🏥' }
   ];
 
+  const likelihoods = [
+    { value: 'confirmed', label: '✅ Confirmed (100%)', color: 'text-green-700', description: 'This event is guaranteed to happen' },
+    { value: 'high', label: '🟦 High (80-90%)', color: 'text-blue-700', description: '80-90% chance this will occur' },
+    { value: 'medium', label: '🟨 Medium (40-70%)', color: 'text-yellow-700', description: '40-70% chance this will occur' },
+    { value: 'low', label: '🟥 Low (10-30%)', color: 'text-red-700', description: '10-30% chance this will occur' }
+  ];
+
+  const getLikelihoodInfo = (likelihood) => {
+    return likelihoods.find(l => l.value === likelihood) || likelihoods[0];
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
@@ -206,8 +219,8 @@ const EnhancedTransactionForm = () => {
       </div>
       
       <div className="p-6 space-y-6">
-        {/* Type and Category Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Type, Category, and Likelihood Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
               <DollarSign className="w-4 h-4 mr-1" />
@@ -234,6 +247,28 @@ const EnhancedTransactionForm = () => {
                 <option key={cat.value} value={cat.value}>{cat.label}</option>
               ))}
             </select>
+          </div>
+
+          {/* NEW LIKELIHOOD FIELD */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              <Target className="w-4 h-4 mr-1" />
+              Likelihood
+            </label>
+            <select
+              value={transaction.likelihood}
+              onChange={(e) => setTransaction(prev => ({ ...prev, likelihood: e.target.value }))}
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white"
+            >
+              {likelihoods.map(likelihood => (
+                <option key={likelihood.value} value={likelihood.value}>
+                  {likelihood.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500">
+              {getLikelihoodInfo(transaction.likelihood).description}
+            </p>
           </div>
         </div>
 
@@ -337,7 +372,7 @@ const EnhancedTransactionForm = () => {
           </p>
         </div>
 
-        {/* Preview */}
+        {/* Enhanced Preview */}
         <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-4 border border-gray-200">
           <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
             <Zap className="w-4 h-4 mr-1" />
@@ -360,8 +395,19 @@ const EnhancedTransactionForm = () => {
                     One-time
                   </span>
                 )}
+                
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                   {categories.find(c => c.value === transaction.category)?.icon || '📄'} {transaction.category}
+                </span>
+
+                {/* Likelihood Badge */}
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  transaction.likelihood === 'confirmed' ? 'bg-green-100 text-green-800' :
+                  transaction.likelihood === 'high' ? 'bg-blue-100 text-blue-800' :
+                  transaction.likelihood === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {getLikelihoodInfo(transaction.likelihood).label.split(' ')[0]} {transaction.likelihood}
                 </span>
               </div>
             </div>
@@ -412,6 +458,11 @@ const TransactionList = () => {
       if (filter === 'expense') return transaction.type === 'expense';
       if (filter === 'recurring') return transaction.isRecurring;
       if (filter === 'one-time') return !transaction.isRecurring;
+      // NEW LIKELIHOOD FILTERS
+      if (filter === 'confirmed') return transaction.likelihood === 'confirmed';
+      if (filter === 'high') return transaction.likelihood === 'high';
+      if (filter === 'medium') return transaction.likelihood === 'medium';
+      if (filter === 'low') return transaction.likelihood === 'low';
       return true;
     })
     .sort((a, b) => {
@@ -423,6 +474,10 @@ const TransactionList = () => {
       }
       if (sortBy === 'description') {
         return a.description.localeCompare(b.description);
+      }
+      if (sortBy === 'likelihood') {
+        const order = { confirmed: 4, high: 3, medium: 2, low: 1 };
+        return (order[b.likelihood] || 0) - (order[a.likelihood] || 0);
       }
       return 0;
     });
@@ -462,6 +517,16 @@ const TransactionList = () => {
     return icons[category] || '📄';
   };
 
+  const getLikelihoodIcon = (likelihood) => {
+    const icons = {
+      confirmed: '✅',
+      high: '🟦',
+      medium: '🟨',
+      low: '🟥'
+    };
+    return icons[likelihood] || '⚪';
+  };
+
   const handleDeleteTransaction = async (id) => {
     setDeletingId(id);
     try {
@@ -498,7 +563,7 @@ const TransactionList = () => {
         </div>
 
         {showFilters && (
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -509,6 +574,10 @@ const TransactionList = () => {
               <option value="expense" className="text-gray-900">Expenses Only</option>
               <option value="recurring" className="text-gray-900">Recurring</option>
               <option value="one-time" className="text-gray-900">One-time</option>
+              <option value="confirmed" className="text-gray-900">✅ Confirmed</option>
+              <option value="high" className="text-gray-900">🟦 High Likelihood</option>
+              <option value="medium" className="text-gray-900">🟨 Medium Likelihood</option>
+              <option value="low" className="text-gray-900">🟥 Low Likelihood</option>
             </select>
             
             <select
@@ -519,6 +588,7 @@ const TransactionList = () => {
               <option value="date" className="text-gray-900">Sort by Date</option>
               <option value="amount" className="text-gray-900">Sort by Amount</option>
               <option value="description" className="text-gray-900">Sort by Name</option>
+              <option value="likelihood" className="text-gray-900">Sort by Likelihood</option>
             </select>
 
             <div className="text-xs text-white/80 flex items-center">
@@ -616,6 +686,16 @@ const TransactionList = () => {
                       
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         {getCategoryIcon(transaction.category)} {transaction.category}
+                      </span>
+
+                      {/* Likelihood Badge */}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        transaction.likelihood === 'confirmed' ? 'bg-green-100 text-green-800' :
+                        transaction.likelihood === 'high' ? 'bg-blue-100 text-blue-800' :
+                        transaction.likelihood === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {getLikelihoodIcon(transaction.likelihood)} {transaction.likelihood}
                       </span>
                     </div>
                     
