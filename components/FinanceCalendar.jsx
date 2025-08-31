@@ -11,7 +11,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
   const [hoveredDate, setHoveredDate] = useState(null);
   const [expandedDays, setExpandedDays] = useState(new Set()); // NEW: Track which days are expanded
 
-  // Convert transactions to calendar events - NO MORE SEPARATE EVENTS
+  // Convert transactions to calendar events - REMOVED SEPARATE STATE
   const calendarEvents = useMemo(() => {
     const convertedEvents = transactions.map(transaction => ({
       id: transaction.id,
@@ -42,7 +42,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
             ...event,
             id: `${event.id}-${instanceCount}`,
             date: new Date(currentEventDate),
-            title: `${event.title} (Recurring)`
+            title: instanceCount === 0 ? event.title : `${event.title} (Recurring)`
           });
 
           // Move to next occurrence based on frequency
@@ -71,7 +71,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     });
 
     return expandedEvents;
-  }, [transactions]);
+  }, [transactions]); // This will update when transactions change
 
   const filteredEvents = useMemo(() => {
     return calendarEvents.filter(event => eventFilters[event.likelihood]);
