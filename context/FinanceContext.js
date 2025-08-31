@@ -79,7 +79,14 @@ export const FinanceProvider = ({ children }) => {
       const data = Array.isArray(result) ? result[0] : result;
       
       if (data.success && data.data) {
-        setTransactions(data.data.transactions || []);
+        // Process transactions and ensure they have likelihood field
+        const processedTransactions = (data.data.transactions || []).map(transaction => ({
+          ...transaction,
+          // Ensure likelihood field exists - default to 'confirmed' for existing transactions
+          likelihood: transaction.likelihood || 'confirmed'
+        }));
+        
+        setTransactions(processedTransactions);
         setAccountBalances(data.data.accountBalances || {
           personalBankBalance: 0,
           businessBankBalance: 0,
@@ -104,18 +111,20 @@ export const FinanceProvider = ({ children }) => {
     await fetchFinancialData();
   }, [fetchFinancialData]);
 
-  // Transaction management with webhook integration
+  // Transaction management with webhook integration - UPDATED TO HANDLE LIKELIHOOD
   const addTransaction = useCallback(async (transactionData) => {
     const newTransaction = {
       ...transactionData,
       id: Date.now(),
       amount: parseFloat(transactionData.amount),
+      // Ensure likelihood field is included
+      likelihood: transactionData.likelihood || 'confirmed',
       createdAt: new Date()
     };
     
     setTransactions(prev => [newTransaction, ...prev]);
     
-    // Send webhook update
+    // Send webhook update with likelihood data
     await sendWebhookUpdate('ADD_TRANSACTION', {
       transaction: newTransaction
     });
@@ -133,7 +142,7 @@ export const FinanceProvider = ({ children }) => {
     });
   }, [transactions]);
 
-  // Account balance management with webhook integration - FIXED VERSION
+  // Account balance management with webhook integration
   const updateAccountBalances = useCallback(async (field, value) => {
     // Capture the old value BEFORE updating state
     const oldValue = accountBalances[field] || 0;
@@ -162,7 +171,7 @@ export const FinanceProvider = ({ children }) => {
     fetchFinancialData();
   }, [fetchFinancialData]);
 
-  // Calculate stats from transactions
+  // Calculate stats from transactions - UPDATED TO HANDLE LIKELIHOOD
   const calculateStats = useCallback(() => {
     const personalRevenue = transactions
       .filter(t => t.type === 'revenue' && (t.category === 'personal' || t.category === 'healthcare' || t.category === 'food' || t.category === 'transport'))
@@ -191,13 +200,36 @@ export const FinanceProvider = ({ children }) => {
     const monthlyRecurring = transactions
       .filter(t => t.isRecurring)
       .reduce((sum, t) => sum + (t.type === 'revenue' ? t.amount : -t.amount), 0);
+
+    // ENHANCED: Calculate weighted projections based on likelihood
+    const calculateWeightedAmount = (transaction) => {
+      const multipliers = {
+        confirmed: 1.0,
+        high: 0.85,
+        medium: 0.55,
+        low: 0.2
+      };
+      const multiplier = multipliers[transaction.likelihood] || 1.0;
+      return transaction.amount * multiplier;
+    };
+
+    const weightedTotalRevenue = transactions
+      .filter(t => t.type === 'revenue')
+      .reduce((sum, t) => sum + calculateWeightedAmount(t), 0);
+
+    const weightedMonthlyRecurring = transactions
+      .filter(t => t.isRecurring)
+      .reduce((sum, t) => {
+        const weightedAmount = calculateWeightedAmount(t);
+        return sum + (t.type === 'revenue' ? weightedAmount : -weightedAmount);
+      }, 0);
     
     return {
       // Overall stats
       currentCash: totalRevenue - totalExpenses + accountBalances.personalBankBalance + accountBalances.businessBankBalance + accountBalances.personalCashOnHand,
       monthlyBurn: totalExpenses,
       monthsToGoal: 8, // This could be calculated based on goals
-      projectedRevenue: totalRevenue,
+      projectedRevenue: Math.round(weightedTotalRevenue), // Use weighted projection
       
       // Personal stats (calculated from transactions)
       personalStats: {
@@ -214,6 +246,21 @@ export const FinanceProvider = ({ children }) => {
         monthlyRecurring: transactions
           .filter(t => t.isRecurring && (t.category === 'business' || t.category === 'investment' || t.category === 'marketing'))
           .reduce((sum, t) => sum + (t.type === 'revenue' ? t.amount : -t.amount), 0)
+      },
+
+      // NEW: Likelihood-based projections
+      projectionStats: {
+        confirmedRevenue: transactions
+          .filter(t => t.type === 'revenue' && t.likelihood === 'confirmed')
+          .reduce((sum, t) => sum + t.amount, 0),
+        weightedProjectedRevenue: Math.round(weightedTotalRevenue),
+        weightedMonthlyRecurring: Math.round(weightedMonthlyRecurring),
+        transactionsByLikelihood: {
+          confirmed: transactions.filter(t => t.likelihood === 'confirmed').length,
+          high: transactions.filter(t => t.likelihood === 'high').length,
+          medium: transactions.filter(t => t.likelihood === 'medium').length,
+          low: transactions.filter(t => t.likelihood === 'low').length
+        }
       }
     };
   }, [transactions, accountBalances]);
