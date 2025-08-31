@@ -8,17 +8,16 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [events, setEvents] = useState([]);
   const [hoveredDate, setHoveredDate] = useState(null);
 
-  // Convert transactions to calendar events
-  useEffect(() => {
+  // Convert transactions to calendar events - NO MORE SEPARATE EVENTS
+  const calendarEvents = useMemo(() => {
     const convertedEvents = transactions.map(transaction => ({
       id: transaction.id,
       title: transaction.description,
       amount: transaction.type === 'expense' ? -Math.abs(transaction.amount) : Math.abs(transaction.amount),
       type: transaction.type,
-      likelihood: 'confirmed',
+      likelihood: transaction.likelihood || 'confirmed', // Default to confirmed for existing transactions
       date: new Date(transaction.scheduledDate),
       description: transaction.description,
       category: transaction.category,
@@ -70,14 +69,14 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
       }
     });
 
-    setEvents(expandedEvents);
+    return expandedEvents;
   }, [transactions]);
 
   const filteredEvents = useMemo(() => {
-    return events.filter(event => eventFilters[event.likelihood]);
-  }, [events, eventFilters]);
+    return calendarEvents.filter(event => eventFilters[event.likelihood]);
+  }, [calendarEvents, eventFilters]);
 
-  // Calculate balance for any given date
+  // Calculate balance for any given date - UPDATED TO SHOW FULL AMOUNTS
   const calculateBalanceForDate = (targetDate, accountType) => {
     const startBalance = accountType === 'personal' 
       ? accountBalances.personalBankBalance 
@@ -223,16 +222,6 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     setIsModalOpen(true);
   };
 
-  const handleAddEvent = (eventData) => {
-    const newEvent = {
-      ...eventData,
-      id: events.length + 1,
-      date: selectedDate,
-      isFromTransaction: false
-    };
-    setEvents([...events, newEvent]);
-  };
-
   const formatDateHeader = () => {
     if (viewMode === 'week') {
       return `${rangeStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${rangeEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
@@ -244,6 +233,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     }
   };
 
+  // UPDATED: Full currency formatting instead of compact
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -253,6 +243,17 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     }).format(Math.abs(amount));
   };
 
+  // UPDATED: Full currency formatting for balance display
+  const formatFullCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Keep compact for very large summary numbers
   const formatCompactCurrency = (amount) => {
     const absAmount = Math.abs(amount);
     if (absAmount >= 1000000) {
@@ -383,18 +384,18 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                   {month.toLocaleDateString('en-US', { month: 'long' })}
                 </div>
                 
-                {/* Month-end Balances */}
+                {/* Month-end Balances - UPDATED TO SHOW FULL AMOUNTS */}
                 <div className="space-y-2 mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
                   <div className="text-xs">
                     <span className="text-gray-600">Personal:</span>
                     <span className={`ml-2 font-semibold ${getBalanceColor(monthEndPersonalBalance)}`}>
-                      {formatCompactCurrency(monthEndPersonalBalance)}
+                      {formatFullCurrency(monthEndPersonalBalance)}
                     </span>
                   </div>
                   <div className="text-xs">
                     <span className="text-gray-600">Business:</span>
                     <span className={`ml-2 font-semibold ${getBalanceColor(monthEndBusinessBalance)}`}>
-                      {formatCompactCurrency(monthEndBusinessBalance)}
+                      {formatFullCurrency(monthEndBusinessBalance)}
                     </span>
                   </div>
                 </div>
@@ -454,20 +455,20 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                   {isToday && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Today</span>}
                 </div>
                 
-                {/* Balance Predictions */}
+                {/* Balance Predictions - UPDATED TO SHOW FULL AMOUNTS */}
                 <div className="space-y-1 mb-2 p-2 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200">
                   <div className="flex items-center text-xs">
                     <Wallet className="w-3 h-3 mr-1 text-gray-500" />
                     <span className="text-gray-600">P:</span>
                     <span className={`ml-1 font-semibold ${getBalanceColor(personalBalance)}`}>
-                      {formatCompactCurrency(personalBalance)}
+                      {formatFullCurrency(personalBalance)}
                     </span>
                   </div>
                   <div className="flex items-center text-xs">
                     <Building className="w-3 h-3 mr-1 text-gray-500" />
                     <span className="text-gray-600">B:</span>
                     <span className={`ml-1 font-semibold ${getBalanceColor(businessBalance)}`}>
-                      {formatCompactCurrency(businessBalance)}
+                      {formatFullCurrency(businessBalance)}
                     </span>
                   </div>
                 </div>
@@ -516,12 +517,11 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
         )}
       </div>
 
-      {/* Event Modal */}
+      {/* Updated Event Modal - Now creates transactions */}
       <EventModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         selectedDate={selectedDate}
-        onAddEvent={handleAddEvent}
       />
     </div>
   );
