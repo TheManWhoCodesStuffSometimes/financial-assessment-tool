@@ -145,7 +145,7 @@ const EnhancedTransactionForm = () => {
     amount: '',
     description: '',
     category: 'business',
-    likelihood: 'confirmed', // NEW FIELD
+    likelihood: 'confirmed',
     isRecurring: false,
     frequency: 'monthly',
     scheduledDate: new Date().toISOString().split('T')[0],
@@ -163,7 +163,7 @@ const EnhancedTransactionForm = () => {
         amount: '', 
         description: '', 
         category: 'business',
-        likelihood: 'confirmed', // Reset to confirmed
+        likelihood: 'confirmed',
         isRecurring: false,
         frequency: 'monthly',
         scheduledDate: new Date().toISOString().split('T')[0],
@@ -249,7 +249,6 @@ const EnhancedTransactionForm = () => {
             </select>
           </div>
 
-          {/* NEW LIKELIHOOD FIELD */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
               <Target className="w-4 h-4 mr-1" />
@@ -348,7 +347,448 @@ const EnhancedTransactionForm = () => {
                   className="w-full px-4 py-3 rounded-xl border-2 border-blue-200 focus:border-blue-500 focus:ring-0 transition-colors bg-white"
                   min={transaction.scheduledDate}
                 />
-                <p className="text-xs text-blue-600">Leave blank for indefinite recurrence</p>
+                <p className="text-sm font-medium text-blue-700">Net Income</p>
+                <p className={`text-xl font-bold ${getTotalByType('revenue') - getTotalByType('expense') >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                  {formatCurrency(getTotalByType('revenue') - getTotalByType('expense'))}
+                </p>
+              </div>
+              <Target className="w-8 h-8 text-blue-600" />
+            </div>
+          </div>
+
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-700">Recurring</p>
+                <p className={`text-xl font-bold ${getRecurringTotal() >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                  {formatCurrency(getRecurringTotal())}
+                </p>
+                <p className="text-xs text-purple-600">per month</p>
+              </div>
+              <Repeat className="w-8 h-8 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Transaction List */}
+        <div className="space-y-3">
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-12">
+              <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 font-medium">No transactions found</p>
+              <p className="text-gray-400 text-sm">
+                {transactions.length === 0 
+                  ? "Add your first transaction to get started" 
+                  : "Try adjusting your filters"}
+              </p>
+            </div>
+          ) : (
+            filteredTransactions.map((transaction) => (
+              <div key={transaction.id} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors border border-gray-200 hover:border-gray-300">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        transaction.type === 'revenue' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {transaction.type === 'revenue' ? '💰' : '💸'} {transaction.type}
+                      </span>
+                      
+                      {transaction.isRecurring && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <Repeat className="w-3 h-3 mr-1" />
+                          {transaction.frequency}
+                        </span>
+                      )}
+                      
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {getCategoryIcon(transaction.category)} {transaction.category}
+                      </span>
+
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        transaction.likelihood === 'confirmed' ? 'bg-green-100 text-green-800' :
+                        transaction.likelihood === 'high' ? 'bg-blue-100 text-blue-800' :
+                        transaction.likelihood === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {getLikelihoodIcon(transaction.likelihood)} {transaction.likelihood}
+                      </span>
+                    </div>
+                    
+                    <h4 className="font-semibold text-gray-900 mb-1">{transaction.description}</h4>
+                    <p className="text-sm text-gray-600 flex items-center">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      {new Date(transaction.scheduledDate).toLocaleDateString()}
+                      {transaction.isRecurring && transaction.endDate && (
+                        <span className="ml-2 text-gray-500">
+                          ends {new Date(transaction.endDate).toLocaleDateString()}
+                        </span>
+                      )}
+                      {transaction.isRecurring && !transaction.endDate && (
+                        <span className="ml-2 text-blue-600 text-xs">ongoing</span>
+                      )}
+                    </p>
+                  </div>
+                  
+                  <div className="text-right flex items-center space-x-3">
+                    <div>
+                      <div className={`text-xl font-bold ${transaction.type === 'revenue' ? 'text-green-600' : 'text-red-600'}`}>
+                        {transaction.type === 'expense' ? '-' : '+'}
+                        {formatCurrency(Math.abs(transaction.amount))}
+                      </div>
+                      {transaction.isRecurring && (
+                        <div className="text-xs text-gray-500">
+                          per {transaction.frequency.replace('bi-', '').replace('ly', '')}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                      disabled={deletingId === transaction.id}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Delete transaction"
+                    >
+                      {deletingId === transaction.id ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// UPDATED AccountBalancesInput Component with clearer labeling
+const AccountBalancesInput = () => {
+  const { accountBalances, updateAccountBalances } = useFinanceContext();
+  const [localBalances, setLocalBalances] = useState({
+    personalBankBalance: 0,
+    businessBankBalance: 0,
+    personalCashOnHand: 0
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    setLocalBalances({
+      personalBankBalance: accountBalances.personalBankBalance || 0,
+      businessBankBalance: accountBalances.businessBankBalance || 0,
+      personalCashOnHand: accountBalances.personalCashOnHand || 0
+    });
+  }, [accountBalances]);
+
+  const handleChange = (field, value) => {
+    const newBalances = { ...localBalances, [field]: parseFloat(value) || 0 };
+    setLocalBalances(newBalances);
+    
+    const hasAnyChanges = Object.keys(newBalances).some(
+      key => newBalances[key] !== (accountBalances[key] || 0)
+    );
+    setHasChanges(hasAnyChanges);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const fieldsToUpdate = ['personalBankBalance', 'businessBankBalance', 'personalCashOnHand'];
+      
+      for (const field of fieldsToUpdate) {
+        const oldValue = accountBalances[field] || 0;
+        const newValue = localBalances[field] || 0;
+        
+        if (oldValue !== newValue) {
+          await updateAccountBalances(field, newValue);
+        }
+      }
+      
+      setHasChanges(false);
+    } catch (error) {
+      console.error('Error updating account balances:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReset = () => {
+    setLocalBalances({
+      personalBankBalance: accountBalances.personalBankBalance || 0,
+      businessBankBalance: accountBalances.businessBankBalance || 0,
+      personalCashOnHand: accountBalances.personalCashOnHand || 0
+    });
+    setHasChanges(false);
+  };
+
+  const balanceFields = [
+    {
+      key: 'personalBankBalance',
+      label: 'Personal Bank Balance',
+      icon: Wallet,
+      color: 'text-green-600',
+      description: 'Your personal bank account balance'
+    },
+    {
+      key: 'businessBankBalance', 
+      label: 'Business Bank Balance',
+      icon: Building,
+      color: 'text-blue-600',
+      description: 'Your business bank account balance'
+    },
+    {
+      key: 'personalCashOnHand',
+      label: 'Cash on Hand',
+      icon: CreditCard,
+      color: 'text-purple-600',
+      description: 'Physical cash you have available'
+    }
+  ];
+
+  const totalAssets = Object.values(localBalances).reduce((sum, val) => sum + (val || 0), 0);
+  const totalPersonal = (localBalances.personalBankBalance || 0) + (localBalances.personalCashOnHand || 0);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6">
+        <h3 className="text-xl font-bold text-white flex items-center">
+          <Wallet className="w-5 h-5 mr-2" />
+          Current Account Balances
+        </h3>
+        <p className="text-green-100 text-sm mt-1">Enter your current balances for accurate forecasting</p>
+      </div>
+      
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {balanceFields.map(({ key, label, icon: Icon, color, description }) => (
+          <div key={key} className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              <Icon className={`w-4 h-4 mr-2 ${color}`} />
+              {label}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={localBalances[key] || ''}
+              onChange={(e) => handleChange(key, e.target.value)}
+              disabled={isSubmitting}
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold disabled:opacity-50"
+              placeholder={`Enter ${label.toLowerCase()}...`}
+            />
+            <p className="text-xs text-gray-500">{description}</p>
+          </div>
+        ))}
+        
+        {/* Balance Summary with Calendar Note */}
+        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Balance Summary</h4>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Total Liquid Assets:</span>
+              <span className="text-lg font-bold text-gray-900">${totalAssets.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Personal Total (Bank + Cash):</span>
+              <span className="text-lg font-bold text-green-600">${totalPersonal.toLocaleString()}</span>
+            </div>
+          </div>
+          <div className="mt-3 p-3 bg-blue-100 rounded-lg">
+            <p className="text-xs text-blue-800 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              <strong>Calendar Note:</strong> Cash on hand will be combined with personal bank balance for calendar projections
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={!hasChanges || isSubmitting}
+            className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-3 px-6 rounded-xl hover:from-green-700 hover:to-teal-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                Updating Balances...
+              </>
+            ) : (
+              <>
+                <Wallet className="w-5 h-5 mr-2" />
+                Update Account Balances
+              </>
+            )}
+          </button>
+          
+          {hasChanges && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={isSubmitting}
+              className="px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors border border-gray-300"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        {hasChanges && (
+          <div className="text-xs text-orange-600 bg-orange-50 p-3 rounded-lg border border-orange-200">
+            You have unsaved changes. Click "Update Account Balances" to save them.
+          </div>
+        )}
+      </form>
+    </div>
+  );
+};
+
+export default function EnhancedDashboard() {
+  const {
+    accountBalances,
+    transactions,
+    isLoading,
+    error,
+    lastUpdated,
+    stats,
+    handleRefresh
+  } = useFinanceContext();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+          <h2 className="text-xl font-semibold text-gray-700">Loading Financial Data...</h2>
+          <p className="text-gray-500">Connecting to your financial database</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="text-red-600">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-red-800">Error Loading Data</p>
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center space-x-4">
+            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Financial Command Center
+            </h1>
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+              title="Refresh data"
+            >
+              <RefreshCw className={`w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Track your journey to financial freedom with style and precision
+          </p>
+          {lastUpdated && (
+            <p className="text-sm text-gray-500">
+              Last updated: {lastUpdated.toLocaleString()}
+            </p>
+          )}
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatsCard
+            title="Current Cash Flow"
+            value={`${stats.currentCash.toLocaleString()}`}
+            change="+12%"
+            positive={true}
+            icon={DollarSign}
+            gradient="bg-gradient-to-br from-green-500 to-emerald-600"
+          />
+          <StatsCard
+            title="Monthly Burn Rate"
+            value={`${stats.monthlyBurn.toLocaleString()}`}
+            change="+5%"
+            positive={false}
+            icon={TrendingDown}
+            gradient="bg-gradient-to-br from-red-500 to-pink-600"
+          />
+          <StatsCard
+            title="Months to Goal"
+            value={stats.monthsToGoal}
+            change="March 2026"
+            positive={true}
+            icon={Target}
+            gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
+          />
+          <StatsCard
+            title="Projected Revenue"
+            value={`${stats.projectedRevenue.toLocaleString()}`}
+            change="Next 30 days"
+            positive={true}
+            icon={Calendar}
+            gradient="bg-gradient-to-br from-purple-500 to-indigo-600"
+          />
+        </div>
+
+        {/* Transaction Form and Account Balances */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <EnhancedTransactionForm />
+          </div>
+          
+          <AccountBalancesInput />
+        </div>
+
+        {/* Personal and Business Finance Displays */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <PersonalFinanceDisplay />
+          <BusinessFinanceDisplay />
+        </div>
+
+        {/* Transaction History */}
+        <TransactionList />
+
+        {/* Bottom CTA */}
+        <div className="text-center py-8">
+          <div className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 cursor-pointer">
+            <Calendar className="w-4 h-4" />
+            <span>View Calendar</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}xs text-blue-600">Leave blank for indefinite recurrence</p>
               </div>
             </div>
           )}
@@ -400,7 +840,6 @@ const EnhancedTransactionForm = () => {
                   {categories.find(c => c.value === transaction.category)?.icon || '📄'} {transaction.category}
                 </span>
 
-                {/* Likelihood Badge */}
                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                   transaction.likelihood === 'confirmed' ? 'bg-green-100 text-green-800' :
                   transaction.likelihood === 'high' ? 'bg-blue-100 text-blue-800' :
@@ -458,7 +897,6 @@ const TransactionList = () => {
       if (filter === 'expense') return transaction.type === 'expense';
       if (filter === 'recurring') return transaction.isRecurring;
       if (filter === 'one-time') return !transaction.isRecurring;
-      // NEW LIKELIHOOD FILTERS
       if (filter === 'confirmed') return transaction.likelihood === 'confirmed';
       if (filter === 'high') return transaction.likelihood === 'high';
       if (filter === 'medium') return transaction.likelihood === 'medium';
@@ -688,7 +1126,6 @@ const TransactionList = () => {
                         {getCategoryIcon(transaction.category)} {transaction.category}
                       </span>
 
-                      {/* Likelihood Badge */}
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         transaction.likelihood === 'confirmed' ? 'bg-green-100 text-green-800' :
                         transaction.likelihood === 'high' ? 'bg-blue-100 text-blue-800' :
@@ -748,317 +1185,3 @@ const TransactionList = () => {
     </div>
   );
 };
-
-// FIXED AccountBalancesInput Component
-const AccountBalancesInput = () => {
-  const { accountBalances, updateAccountBalances } = useFinanceContext();
-  const [localBalances, setLocalBalances] = useState({
-    personalBankBalance: 0,
-    businessBankBalance: 0,
-    personalCashOnHand: 0
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  // Update local state when context updates (from initial load)
-  useEffect(() => {
-    setLocalBalances({
-      personalBankBalance: accountBalances.personalBankBalance || 0,
-      businessBankBalance: accountBalances.businessBankBalance || 0,
-      personalCashOnHand: accountBalances.personalCashOnHand || 0
-    });
-  }, [accountBalances]);
-
-  const handleChange = (field, value) => {
-    const newBalances = { ...localBalances, [field]: parseFloat(value) || 0 };
-    setLocalBalances(newBalances);
-    
-    // Check if there are changes
-    const hasAnyChanges = Object.keys(newBalances).some(
-      key => newBalances[key] !== (accountBalances[key] || 0)
-    );
-    setHasChanges(hasAnyChanges);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    try {
-      // Send all balance updates with proper change tracking
-      const fieldsToUpdate = ['personalBankBalance', 'businessBankBalance', 'personalCashOnHand'];
-      
-      for (const field of fieldsToUpdate) {
-        const oldValue = accountBalances[field] || 0;
-        const newValue = localBalances[field] || 0;
-        
-        // Only send update if value has actually changed
-        if (oldValue !== newValue) {
-          await updateAccountBalances(field, newValue);
-        }
-      }
-      
-      setHasChanges(false);
-    } catch (error) {
-      console.error('Error updating account balances:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleReset = () => {
-    setLocalBalances({
-      personalBankBalance: accountBalances.personalBankBalance || 0,
-      businessBankBalance: accountBalances.businessBankBalance || 0,
-      personalCashOnHand: accountBalances.personalCashOnHand || 0
-    });
-    setHasChanges(false);
-  };
-
-  const balanceFields = [
-    {
-      key: 'personalBankBalance',
-      label: 'Personal Bank Balance',
-      icon: Wallet,
-      color: 'text-green-600'
-    },
-    {
-      key: 'businessBankBalance', 
-      label: 'Business Bank Balance',
-      icon: Building,
-      color: 'text-blue-600'
-    },
-    {
-      key: 'personalCashOnHand',
-      label: 'Personal Cash on Hand',
-      icon: CreditCard,
-      color: 'text-purple-600'
-    }
-  ];
-
-  const totalAssets = Object.values(localBalances).reduce((sum, val) => sum + (val || 0), 0);
-
-  return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6">
-        <h3 className="text-xl font-bold text-white flex items-center">
-          <Wallet className="w-5 h-5 mr-2" />
-          Account Balances
-        </h3>
-        <p className="text-green-100 text-sm mt-1">Current cash and bank account balances</p>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        {balanceFields.map(({ key, label, icon: Icon, color }) => (
-          <div key={key} className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 flex items-center">
-              <Icon className={`w-4 h-4 mr-2 ${color}`} />
-              {label}
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={localBalances[key] || ''}
-              onChange={(e) => handleChange(key, e.target.value)}
-              disabled={isSubmitting}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-0 transition-colors bg-gray-50 focus:bg-white font-semibold disabled:opacity-50"
-              placeholder={`Enter ${label.toLowerCase()}...`}
-            />
-          </div>
-        ))}
-        
-        {/* Total Balance Summary */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Total Liquid Assets</h4>
-          <div className="text-2xl font-bold text-gray-900">
-            ${totalAssets.toLocaleString()}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            Sum of all account balances
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={!hasChanges || isSubmitting}
-            className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-3 px-6 rounded-xl hover:from-green-700 hover:to-teal-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          >
-            {isSubmitting ? (
-              <>
-                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                Updating Balances...
-              </>
-            ) : (
-              <>
-                <Wallet className="w-5 h-5 mr-2" />
-                Update Account Balances
-              </>
-            )}
-          </button>
-          
-          {hasChanges && (
-            <button
-              type="button"
-              onClick={handleReset}
-              disabled={isSubmitting}
-              className="px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors border border-gray-300"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        {hasChanges && (
-          <div className="text-xs text-orange-600 bg-orange-50 p-3 rounded-lg border border-orange-200">
-            You have unsaved changes. Click "Update Account Balances" to save them.
-          </div>
-        )}
-      </form>
-    </div>
-  );
-};
-
-export default function EnhancedDashboard() {
-  const {
-    accountBalances,
-    transactions,
-    isLoading,
-    error,
-    lastUpdated,
-    stats,
-    handleRefresh
-  } = useFinanceContext();
-
-  // Loading component
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <h2 className="text-xl font-semibold text-gray-700">Loading Financial Data...</h2>
-          <p className="text-gray-500">Connecting to your financial database</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Error Banner */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="text-red-600">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-semibold text-red-800">Error Loading Data</p>
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-        
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center space-x-4">
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Financial Command Center
-            </h1>
-            <button
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
-              title="Refresh data"
-            >
-              <RefreshCw className={`w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Track your journey to financial freedom with style and precision
-          </p>
-          {lastUpdated && (
-            <p className="text-sm text-gray-500">
-              Last updated: {lastUpdated.toLocaleString()}
-            </p>
-          )}
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Current Cash Flow"
-            value={`$${stats.currentCash.toLocaleString()}`}
-            change="+12%"
-            positive={true}
-            icon={DollarSign}
-            gradient="bg-gradient-to-br from-green-500 to-emerald-600"
-          />
-          <StatsCard
-            title="Monthly Burn Rate"
-            value={`$${stats.monthlyBurn.toLocaleString()}`}
-            change="+5%"
-            positive={false}
-            icon={TrendingDown}
-            gradient="bg-gradient-to-br from-red-500 to-pink-600"
-          />
-          <StatsCard
-            title="Months to Goal"
-            value={stats.monthsToGoal}
-            change="March 2026"
-            positive={true}
-            icon={Target}
-            gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
-          />
-          <StatsCard
-            title="Projected Revenue"
-            value={`$${stats.projectedRevenue.toLocaleString()}`}
-            change="Next 30 days"
-            positive={true}
-            icon={Calendar}
-            gradient="bg-gradient-to-br from-purple-500 to-indigo-600"
-          />
-        </div>
-
-        {/* Transaction Form and Account Balances */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <EnhancedTransactionForm />
-          </div>
-          
-          <AccountBalancesInput />
-        </div>
-
-        {/* Personal and Business Finance Displays */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <PersonalFinanceDisplay />
-          <BusinessFinanceDisplay />
-        </div>
-
-        {/* Transaction History */}
-        <TransactionList />
-
-        {/* Bottom CTA */}
-        <div className="text-center py-8">
-          <div className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 cursor-pointer">
-            <Calendar className="w-4 h-4" />
-            <span>View Calendar</span>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-}
