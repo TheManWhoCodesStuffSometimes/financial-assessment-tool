@@ -9,16 +9,23 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hoveredDate, setHoveredDate] = useState(null);
-  const [expandedDays, setExpandedDays] = useState(new Set()); // NEW: Track which days are expanded
+  const [expandedDays, setExpandedDays] = useState(new Set());
 
-  // Convert transactions to calendar events - REMOVED SEPARATE STATE
+  // Get today's date at midnight for consistent comparisons
+  const today = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, []);
+
+  // Convert transactions to calendar events
   const calendarEvents = useMemo(() => {
     const convertedEvents = transactions.map(transaction => ({
       id: transaction.id,
       title: transaction.description,
       amount: transaction.type === 'expense' ? -Math.abs(transaction.amount) : Math.abs(transaction.amount),
       type: transaction.type,
-      likelihood: transaction.likelihood || 'confirmed', // Default to confirmed for existing transactions
+      likelihood: transaction.likelihood || 'confirmed',
       date: new Date(transaction.scheduledDate),
       description: transaction.description,
       category: transaction.category,
@@ -37,7 +44,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
         let currentEventDate = new Date(startDate);
         let instanceCount = 0;
 
-        while (currentEventDate <= endDate && instanceCount < 52) { // Max 52 occurrences for safety
+        while (currentEventDate <= endDate && instanceCount < 52) {
           expandedEvents.push({
             ...event,
             id: `${event.id}-${instanceCount}`,
@@ -71,25 +78,48 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     });
 
     return expandedEvents;
-  }, [transactions]); // This will update when transactions change
+  }, [transactions]);
 
   const filteredEvents = useMemo(() => {
     return calendarEvents.filter(event => eventFilters[event.likelihood]);
   }, [calendarEvents, eventFilters]);
 
-  // Calculate balance for any given date - UPDATED TO SHOW FULL AMOUNTS
+  // UPDATED: Calculate balance for any given date - ONLY forward-looking from today
   const calculateBalanceForDate = (targetDate, accountType) => {
-    const startBalance = accountType === 'personal' 
-      ? accountBalances.personalBankBalance 
-      : accountBalances.businessBankBalance;
+    // Start with current balance as of today
+    let startBalance;
+    if (accountType === 'personal') {
+      // Combine personal bank balance with cash on hand for personal total
+      startBalance = (accountBalances.personalBankBalance || 0) + (accountBalances.personalCashOnHand || 0);
+    } else {
+      // Business balance stays as is
+      startBalance = accountBalances.businessBankBalance || 0;
+    }
 
-    // Get all events up to and including the target date
+    // Set target date to midnight for comparison
+    const target = new Date(targetDate);
+    target.setHours(0, 0, 0, 0);
+
+    // If the target date is before today, just return the starting balance
+    // (we don't look at past transactions)
+    if (target < today) {
+      return startBalance;
+    }
+
+    // If target date is today, return the starting balance
+    if (target.getTime() === today.getTime()) {
+      return startBalance;
+    }
+
+    // Get all future events from tomorrow up to and including the target date
     const relevantEvents = filteredEvents.filter(event => {
       const eventDate = new Date(event.date);
       eventDate.setHours(0, 0, 0, 0);
-      const target = new Date(targetDate);
-      target.setHours(0, 0, 0, 0);
-      return eventDate <= target;
+      
+      // Only include events that are:
+      // 1. After today (future transactions)
+      // 2. On or before the target date
+      return eventDate > today && eventDate <= target;
     });
 
     // Filter by account type based on category
@@ -101,16 +131,19 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
       }
     });
 
-    // Calculate the running total
+    // Calculate the running total from future transactions only
     const eventTotal = accountEvents.reduce((sum, event) => sum + event.amount, 0);
     return startBalance + eventTotal;
   };
 
-  // Get week/month/quarter summary
+  // Get week/month/quarter summary - ONLY future transactions
   const getPeriodSummary = (startDate, endDate) => {
     const periodEvents = filteredEvents.filter(event => {
       const eventDate = new Date(event.date);
-      return eventDate >= startDate && eventDate <= endDate;
+      eventDate.setHours(0, 0, 0, 0);
+      
+      // Only include future events in the summary
+      return eventDate > today && eventDate >= startDate && eventDate <= endDate;
     });
 
     const revenue = periodEvents
@@ -134,7 +167,6 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     return colors[likelihood] || 'bg-gray-500';
   };
 
-  // NEW: Get event color based on type (revenue = green, expense = red) with opacity based on likelihood
   const getEventColor = (event) => {
     const baseColor = event.type === 'revenue' ? 'bg-green' : 'bg-red';
     const opacity = {
@@ -235,9 +267,8 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     setIsModalOpen(true);
   };
 
-  // NEW: Toggle expanded state for a specific day
   const toggleDayExpansion = (dateString, e) => {
-    e.stopPropagation(); // Prevent triggering date click
+    e.stopPropagation();
     const newExpanded = new Set(expandedDays);
     if (newExpanded.has(dateString)) {
       newExpanded.delete(dateString);
@@ -258,7 +289,6 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     }
   };
 
-  // UPDATED: Full currency formatting instead of compact
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -268,7 +298,6 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     }).format(Math.abs(amount));
   };
 
-  // UPDATED: Full currency formatting for balance display
   const formatFullCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -278,7 +307,6 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
     }).format(amount);
   };
 
-  // Keep compact for very large summary numbers
   const formatCompactCurrency = (amount) => {
     const absAmount = Math.abs(amount);
     if (absAmount >= 1000000) {
@@ -291,6 +319,13 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
   };
 
   const calendarDays = generateCalendarDays();
+
+  // Helper to check if a date is in the past
+  const isPastDate = (date) => {
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate < today;
+  };
 
   return (
     <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-100">
@@ -329,13 +364,13 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
           </div>
         </div>
 
-        {/* Period Summary */}
+        {/* Period Summary - Shows future projections only */}
         <div className="px-6 py-4 bg-gradient-to-r from-blue-700/50 to-purple-700/50">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-blue-100 font-medium">Period Revenue</p>
+                  <p className="text-xs text-blue-100 font-medium">Projected Revenue</p>
                   <p className="text-xl font-bold text-white">{formatCurrency(periodSummary.revenue)}</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-400" />
@@ -345,7 +380,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
             <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-blue-100 font-medium">Period Expenses</p>
+                  <p className="text-xs text-blue-100 font-medium">Projected Expenses</p>
                   <p className="text-xl font-bold text-white">{formatCurrency(periodSummary.expenses)}</p>
                 </div>
                 <TrendingDown className="w-8 h-8 text-red-400" />
@@ -367,7 +402,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
             <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-blue-100 font-medium">Transactions</p>
+                  <p className="text-xs text-blue-100 font-medium">Future Transactions</p>
                   <p className="text-xl font-bold text-white">{periodSummary.eventCount}</p>
                 </div>
                 <Target className="w-8 h-8 text-purple-400" />
@@ -409,7 +444,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                   {month.toLocaleDateString('en-US', { month: 'long' })}
                 </div>
                 
-                {/* Month-end Balances - UPDATED TO SHOW FULL AMOUNTS */}
+                {/* Month-end Balances */}
                 <div className="space-y-2 mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
                   <div className="text-xs">
                     <span className="text-gray-600">Personal:</span>
@@ -444,7 +479,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                 </div>
 
                 <div className="mt-3 text-xs text-gray-500">
-                  {monthSummary.eventCount} transactions
+                  {monthSummary.eventCount} future transactions
                 </div>
               </div>
             );
@@ -455,12 +490,15 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
             const dayEvents = getEventsForDate(date);
             const isCurrentMonth = viewMode === 'week' || date.getMonth() === currentDate.getMonth();
             const isToday = date.toDateString() === new Date().toDateString();
+            const isPast = isPastDate(date);
             
             const personalBalance = calculateBalanceForDate(date, 'personal');
             const businessBalance = calculateBalanceForDate(date, 'business');
             
-            const dayRevenue = dayEvents.filter(e => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
-            const dayExpenses = dayEvents.filter(e => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0);
+            // Only show future events in the day summary
+            const futureDayEvents = isPast ? [] : dayEvents;
+            const dayRevenue = futureDayEvents.filter(e => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
+            const dayExpenses = futureDayEvents.filter(e => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0);
             
             return (
               <div 
@@ -468,6 +506,8 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                 className={`relative p-2 border-r border-b min-h-32 hover:bg-gray-50 cursor-pointer transition-all duration-200 ${
                   !isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''
                 } ${isToday ? 'bg-blue-50 ring-2 ring-blue-500' : ''} ${
+                  isPast ? 'bg-gray-100 opacity-60' : ''
+                } ${
                   hoveredDate === date.toDateString() ? 'bg-yellow-50' : ''
                 }`}
                 onClick={() => handleDateClick(date)}
@@ -478,9 +518,10 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                 <div className={`font-bold mb-2 flex items-center justify-between ${isToday ? 'text-blue-600' : ''}`}>
                   <span className="text-sm">{date.getDate()}</span>
                   {isToday && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Today</span>}
+                  {isPast && <span className="text-xs text-gray-500">(Past)</span>}
                 </div>
                 
-                {/* Balance Predictions - UPDATED TO SHOW FULL AMOUNTS */}
+                {/* Balance Predictions */}
                 <div className="space-y-1 mb-2 p-2 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-gray-200">
                   <div className="flex items-center text-xs">
                     <Wallet className="w-3 h-3 mr-1 text-gray-500" />
@@ -498,8 +539,8 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                   </div>
                 </div>
 
-                {/* Day Summary */}
-                {(dayRevenue > 0 || dayExpenses > 0) && (
+                {/* Day Summary - Only show for future dates */}
+                {!isPast && (dayRevenue > 0 || dayExpenses > 0) && (
                   <div className="text-xs mb-2 p-1 bg-white rounded border border-gray-200">
                     {dayRevenue > 0 && (
                       <div className="text-green-600 font-medium">+{formatCompactCurrency(dayRevenue)}</div>
@@ -510,56 +551,58 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
                   </div>
                 )}
 
-                {/* Events */}
-                <div className="space-y-1">
-                  {(() => {
-                    const dateString = date.toDateString();
-                    const isExpanded = expandedDays.has(dateString);
-                    const maxVisible = viewMode === 'week' ? 3 : 2;
-                    const visibleEvents = isExpanded ? dayEvents : dayEvents.slice(0, maxVisible);
-                    const hasMore = dayEvents.length > maxVisible;
+                {/* Events - Only show future events */}
+                {!isPast && (
+                  <div className="space-y-1">
+                    {(() => {
+                      const dateString = date.toDateString();
+                      const isExpanded = expandedDays.has(dateString);
+                      const maxVisible = viewMode === 'week' ? 3 : 2;
+                      const visibleEvents = isExpanded ? futureDayEvents : futureDayEvents.slice(0, maxVisible);
+                      const hasMore = futureDayEvents.length > maxVisible;
 
-                    return (
-                      <>
-                        {visibleEvents.map(event => (
-                          <div 
-                            key={event.id}
-                            className={`text-xs p-1 rounded ${getEventColor(event)} text-white truncate flex items-center`}
-                            title={`${event.title} - ${formatCurrency(event.amount)} (${event.likelihood})`}
-                          >
-                            {event.isRecurring && <Repeat className="w-2 h-2 mr-1" />}
-                            <span className="truncate">{event.title}</span>
-                          </div>
-                        ))}
-                        
-                        {hasMore && (
-                          <button
-                            onClick={(e) => toggleDayExpansion(dateString, e)}
-                            className="text-xs text-gray-600 hover:text-gray-800 font-medium flex items-center w-full p-1 rounded hover:bg-gray-100 transition-colors"
-                            title={isExpanded ? 'Show less' : `Show ${dayEvents.length - maxVisible} more events`}
-                          >
-                            {isExpanded ? (
-                              <>
-                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                </svg>
-                                Show less
-                              </>
-                            ) : (
-                              <>
-                                <ChevronRight className="w-3 h-3 mr-1" />
-                                +{dayEvents.length - maxVisible} more
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                      return (
+                        <>
+                          {visibleEvents.map(event => (
+                            <div 
+                              key={event.id}
+                              className={`text-xs p-1 rounded ${getEventColor(event)} text-white truncate flex items-center`}
+                              title={`${event.title} - ${formatCurrency(event.amount)} (${event.likelihood})`}
+                            >
+                              {event.isRecurring && <Repeat className="w-2 h-2 mr-1" />}
+                              <span className="truncate">{event.title}</span>
+                            </div>
+                          ))}
+                          
+                          {hasMore && (
+                            <button
+                              onClick={(e) => toggleDayExpansion(dateString, e)}
+                              className="text-xs text-gray-600 hover:text-gray-800 font-medium flex items-center w-full p-1 rounded hover:bg-gray-100 transition-colors"
+                              title={isExpanded ? 'Show less' : `Show ${futureDayEvents.length - maxVisible} more events`}
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                  Show less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronRight className="w-3 h-3 mr-1" />
+                                  +{futureDayEvents.length - maxVisible} more
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
 
-                {/* Low Balance Warning */}
-                {(personalBalance < 500 || businessBalance < 500) && (
+                {/* Low Balance Warning - Only for future dates */}
+                {!isPast && (personalBalance < 500 || businessBalance < 500) && (
                   <div className="absolute top-1 right-1">
                     <AlertCircle className="w-4 h-4 text-orange-500" title="Low balance warning" />
                   </div>
@@ -570,7 +613,7 @@ export default function FinanceCalendar({ viewMode, eventFilters }) {
         )}
       </div>
 
-      {/* Updated Event Modal - Now creates transactions */}
+      {/* Event Modal */}
       <EventModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
